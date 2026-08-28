@@ -7,19 +7,19 @@ const fs = require('fs');
 
 const app = express();
 
-// Middleware
+// --- MIDDLEWARE ---
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// JWT Secret Key (Render environment variable will override this securely)
+// JWT Secret Key
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_key_change_me';
 
-// --- DATABASE SETUP WITH RENDER PERSISTENT DISK SUPPORT (/var/data) ---
+// --- DATABASE SETUP (RENDER PERSISTENT DISK SUPPORT) ---
 let dbDirectory;
 if (process.env.RENDER) {
     dbDirectory = '/var/data';
-    if (!fs.existsSync(dbDirectory)){
+    if (!fs.existsSync(dbDirectory)) {
         fs.mkdirSync(dbDirectory, { recursive: true });
     }
 } else {
@@ -90,7 +90,7 @@ function verifyToken(req, res, next) {
     });
 }
 
-// --- LOGIN HANDLER FUNCTION (Shared by /login and /api/login) ---
+// --- SHARED LOGIN HANDLER ---
 function handleLogin(req, res) {
     const { username, password } = req.body;
     if (!username || !password) {
@@ -123,10 +123,12 @@ function handleLogin(req, res) {
 
 // --- API ROUTES ---
 
+// 1. Status Check
 app.get('/api/status', (req, res) => {
     res.json({ status: '501Books server is running successfully!' });
 });
 
+// 2. Public Registration Route
 app.post('/api/register', async (req, res) => {
     const { username, password, role } = req.body;
     if (!username || !password) {
@@ -142,6 +144,7 @@ app.post('/api/register', async (req, res) => {
             if (err) {
                 return res.status(400).json({ error: 'Username already exists or database error.' });
             }
+            console.log(`New user registered: ${username} (Role: ${userRole})`);
             res.json({ message: 'User registered successfully!', userId: this.lastID });
         });
     } catch (error) {
@@ -149,10 +152,16 @@ app.post('/api/register', async (req, res) => {
     }
 });
 
-// Login routes (both /api/login and /login work to prevent URL mismatch)
+// 3. Login Routes
 app.post('/api/login', handleLogin);
 app.post('/login', handleLogin);
 
+// 4. Get Current User Profile
+app.get('/api/me', verifyToken, (req, res) => {
+    res.json(req.user);
+});
+
+// 5. Get Books for Logged-in User
 app.get('/api/books', verifyToken, (req, res) => {
     const userId = req.user.id;
     const query = `SELECT * FROM books WHERE user_id = ?`;
@@ -165,25 +174,7 @@ app.get('/api/books', verifyToken, (req, res) => {
     });
 });
 
-app.post('/api/admin/books', verifyToken, (req, res) => {
-    if (req.user.role !== 'admin') {
-        return res.status(403).json({ error: 'Access forbidden. Admins only.' });
-    }
-
-    const { user_id, title, heyzine_url } = req.body;
-    if (!user_id || !title || !heyzine_url) {
-        return res.status(400).json({ error: 'User ID, title, and Heyzine URL are required.' });
-    }
-
-    const query = `INSERT INTO books (user_id, title, heyzine_url) VALUES (?, ?, ?)`;
-    db.run(query, [user_id, title, heyzine_url], function(err) {
-        if (err) {
-            return res.status(500).json({ error: 'Failed to add book.' });
-        }
-        res.json({ message: 'Book added successfully!', bookId: this.lastID });
-    });
-});
-
+// 6. Admin Route: Get All Users (For Dropdowns & Management)
 app.get('/api/admin/users', verifyToken, (req, res) => {
     if (req.user.role !== 'admin') {
         return res.status(403).json({ error: 'Access forbidden. Admins only.' });
@@ -192,17 +183,14 @@ app.get('/api/admin/users', verifyToken, (req, res) => {
     const query = `SELECT id, username, role FROM users`;
     db.all(query, [], (err, rows) => {
         if (err) {
+            console.error('Database error fetching users:', err.message);
             return res.status(500).json({ error: 'Failed to retrieve users.' });
         }
         res.json(rows);
     });
 });
-// 7. Get Current Logged-in User Route
-app.get('/api/me', verifyToken, (req, res) => {
-    // req.user already contains id, username, and role from the JWT token
-    res.json(req.user);
-});
-// 8. Admin Route: Create a New Customer/User Account
+
+// 7. Admin Route: Create a New Customer Account
 app.post('/api/admin/users', verifyToken, async (req, res) => {
     if (req.user.role !== 'admin') {
         return res.status(403).json({ error: 'Access forbidden. Admins only.' });
@@ -221,6 +209,7 @@ app.post('/api/admin/users', verifyToken, async (req, res) => {
             if (err) {
                 return res.status(400).json({ error: 'Username already exists or database error.' });
             }
+            console.log(`Admin created new customer account: ${username} (ID: ${this.lastID})`);
             res.json({ message: 'Customer account created successfully!', userId: this.lastID });
         });
     } catch (error) {
@@ -228,12 +217,34 @@ app.post('/api/admin/users', verifyToken, async (req, res) => {
     }
 });
 
-// --- SAFETY NET: Force JSON for any missing /api/... routes instead of HTML ---
+// 8. Admin Route: Assign a Book / Heyzine Link to a User
+app.post('/api/admin/books', verifyToken, (req, res) => {
+    if (req.user.role !== 'admin') {
+        return res.status(403).json({ error: 'Access forbidden. Admins only.' });
+    }
+
+    const { user_id, title, heyzine_url } = req.body;
+    if (!user_id || !title || !heyzine_url) {
+        return res.status(400).json({ error: 'User ID, title, and Heyzine URL are required.' });
+    }
+
+    const query = `INSERT INTO books (user_id, title, heyzine_url) VALUES (?, ?, ?)`;
+    db.run(query, [user_id, title, heyzine_url], function(err) {
+        if (err) {
+            console.error('Database error inserting book:', err.message);
+            return res.status(500).json({ error: 'Failed to add book.' });
+        }
+        console.log(`Admin assigned book "${title}" to user ID ${user_id}`);
+        res.json({ message: 'Book added successfully!', bookId: this.lastID });
+    });
+});
+
+// --- SAFETY NET: Force JSON for missing API routes ---
 app.use('/api/*', (req, res) => {
     res.status(404).json({ error: `API endpoint not found: ${req.baseUrl}` });
 });
 
-// --- FRONTEND CATCH-ALL ROUTE ---
+// --- FRONTEND CATCH-ALL ---
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
