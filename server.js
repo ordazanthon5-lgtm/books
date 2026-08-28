@@ -35,17 +35,34 @@ const db = new sqlite3.Database(dbPath, (err) => {
     }
 });
 
-// --- INITIALIZE DATABASE TABLES ---
+// --- INITIALIZE DATABASE TABLES & SEED DEFAULT ADMIN ---
 db.serialize(() => {
-    // Users table (handles admins and customer accounts)
     db.run(`CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE,
         password TEXT,
         role TEXT DEFAULT 'customer'
-    )`);
+    )`, async () => {
+        // Auto-create default admin account on startup if none exists
+        db.get(`SELECT * FROM users WHERE role = 'admin'`, async (err, row) => {
+            if (!row) {
+                try {
+                    const hashedPassword = await bcrypt.hash('admin123', 10);
+                    db.run(`INSERT OR IGNORE INTO users (username, password, role) VALUES (?, ?, ?)`, 
+                        ['admin', hashedPassword, 'admin'], 
+                        (insertErr) => {
+                            if (!insertErr) {
+                                console.log('Default admin account auto-created: username: admin / password: admin123');
+                            }
+                        }
+                    );
+                } catch (hashErr) {
+                    console.error('Error hashing default admin password:', hashErr);
+                }
+            }
+        });
+    });
 
-    // Books table (handles Heyzine flipbook links linked to user accounts)
     db.run(`CREATE TABLE IF NOT EXISTS books (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER,
@@ -73,14 +90,43 @@ function verifyToken(req, res, next) {
     });
 }
 
+// --- LOGIN HANDLER FUNCTION (Shared by /login and /api/login) ---
+function handleLogin(req, res) {
+    const { username, password } = req.body;
+    if (!username || !password) {
+        return res.status(400).json({ error: 'Username and password are required.' });
+    }
+
+    const query = `SELECT * FROM users WHERE username = ?`;
+    db.get(query, [username], async (err, user) => {
+        if (err || !user) {
+            return res.status(400).json({ error: 'Invalid username or password.' });
+        }
+
+        try {
+            const isMatch = await bcrypt.compare(password, user.password);
+            if (!isMatch) {
+                return res.status(400).json({ error: 'Invalid username or password.' });
+            }
+
+            const token = jwt.sign(
+                { id: user.id, username: user.username, role: user.role }, 
+                JWT_SECRET, 
+                { expiresIn: '24h' }
+            );
+            return res.json({ message: 'Login successful!', token, role: user.role });
+        } catch (compareErr) {
+            return res.status(500).json({ error: 'Server error processing password.' });
+        }
+    });
+}
+
 // --- API ROUTES ---
 
-// 1. Server Status Check
 app.get('/api/status', (req, res) => {
     res.json({ status: '501Books server is running successfully!' });
 });
 
-// 2. User Registration Route
 app.post('/api/register', async (req, res) => {
     const { username, password, role } = req.body;
     if (!username || !password) {
@@ -103,35 +149,10 @@ app.post('/api/register', async (req, res) => {
     }
 });
 
-// 3. User Login Route
-app.post('/api/login', (req, res) => {
-    const { username, password } = req.body;
-    if (!username || !password) {
-        return res.status(400).json({ error: 'Username and password are required.' });
-    }
+// Login routes (both /api/login and /login work to prevent URL mismatch)
+app.post('/api/login', handleLogin);
+app.post('/login', handleLogin);
 
-    const query = `SELECT * FROM users WHERE username = ?`;
-    db.get(query, [username], async (err, user) => {
-        if (err || !user) {
-            return res.status(400).json({ error: 'Invalid username or password.' });
-        }
-
-        const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) {
-            return res.status(400).json({ error: 'Invalid username or password.' });
-        }
-
-        // Generate JWT token valid for 24 hours
-        const token = jwt.sign(
-            { id: user.id, username: user.username, role: user.role }, 
-            JWT_SECRET, 
-            { expiresIn: '24h' }
-        );
-        res.json({ message: 'Login successful!', token, role: user.role });
-    });
-});
-
-// 4. Get Books Assigned to Logged-in User
 app.get('/api/books', verifyToken, (req, res) => {
     const userId = req.user.id;
     const query = `SELECT * FROM books WHERE user_id = ?`;
@@ -144,7 +165,6 @@ app.get('/api/books', verifyToken, (req, res) => {
     });
 });
 
-// 5. Admin Route: Add a New Book / Heyzine Link to a User
 app.post('/api/admin/books', verifyToken, (req, res) => {
     if (req.user.role !== 'admin') {
         return res.status(403).json({ error: 'Access forbidden. Admins only.' });
@@ -164,7 +184,6 @@ app.post('/api/admin/books', verifyToken, (req, res) => {
     });
 });
 
-// 6. Admin Route: Get All Users
 app.get('/api/admin/users', verifyToken, (req, res) => {
     if (req.user.role !== 'admin') {
         return res.status(403).json({ error: 'Access forbidden. Admins only.' });
@@ -177,6 +196,11 @@ app.get('/api/admin/users', verifyToken, (req, res) => {
         }
         res.json(rows);
     });
+});
+
+// --- SAFETY NET: Force JSON for any missing /api/... routes instead of HTML ---
+app.use('/api/*', (req, res) => {
+    res.status(404).json({ error: `API endpoint not found: ${req.baseUrl}` });
 });
 
 // --- FRONTEND CATCH-ALL ROUTE ---
