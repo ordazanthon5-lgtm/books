@@ -121,16 +121,16 @@ function handleLogin(req, res) {
     });
 }
 
-// --- PASSWORD CHANGE HANDLER ---
+// --- PASSWORD CHANGE HANDLER (UPGRADED FOR ANY FRONTEND PAYLOAD) ---
 function handlePasswordChange(req, res) {
     if (req.user.role !== 'admin') {
         return res.status(403).json({ error: 'Access forbidden. Admins only.' });
     }
 
-    const userId = req.body.userId || req.body.user_id || req.body.id || req.body.customer_id;
-    const password = req.body.password || req.body.newPassword;
+    const identifier = req.body.userId || req.body.user_id || req.body.id || req.body.customer_id || req.body.username || req.body.customer;
+    const password = req.body.password || req.body.newPassword || req.body.new_password;
 
-    if (!userId || !password) {
+    if (!identifier || !password) {
         return res.status(400).json({ error: 'User ID and password are required.' });
     }
 
@@ -139,11 +139,15 @@ function handlePasswordChange(req, res) {
             return res.status(500).json({ error: 'Server error processing password.' });
         }
 
-        db.run(`UPDATE users SET password = ? WHERE id = ?`, [hashedPassword, userId], function(err) {
+        const query = isNaN(identifier) 
+            ? `UPDATE users SET password = ? WHERE username = ?` 
+            : `UPDATE users SET password = ? WHERE id = ?`;
+
+        db.run(query, [hashedPassword, identifier], function(err) {
             if (err || this.changes === 0) {
                 return res.status(404).json({ error: 'User not found or database error.' });
             }
-            console.log(`Admin updated password for user ID: ${userId}`);
+            console.log(`Admin updated password for user identifier: ${identifier}`);
             res.json({ message: 'Password updated successfully!' });
         });
     });
