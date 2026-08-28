@@ -121,6 +121,34 @@ function handleLogin(req, res) {
     });
 }
 
+// --- PASSWORD CHANGE HANDLER ---
+function handlePasswordChange(req, res) {
+    if (req.user.role !== 'admin') {
+        return res.status(403).json({ error: 'Access forbidden. Admins only.' });
+    }
+
+    const userId = req.body.userId || req.body.user_id || req.body.id || req.body.customer_id;
+    const password = req.body.password || req.body.newPassword;
+
+    if (!userId || !password) {
+        return res.status(400).json({ error: 'User ID and password are required.' });
+    }
+
+    bcrypt.hash(password, 10, (hashErr, hashedPassword) => {
+        if (hashErr) {
+            return res.status(500).json({ error: 'Server error processing password.' });
+        }
+
+        db.run(`UPDATE users SET password = ? WHERE id = ?`, [hashedPassword, userId], function(err) {
+            if (err || this.changes === 0) {
+                return res.status(404).json({ error: 'User not found or database error.' });
+            }
+            console.log(`Admin updated password for user ID: ${userId}`);
+            res.json({ message: 'Password updated successfully!' });
+        });
+    });
+}
+
 // --- API ROUTES ---
 
 // 1. Status Check
@@ -241,15 +269,14 @@ app.post('/api/admin/users', verifyToken, async (req, res) => {
     }
 });
 
-// 8. Admin Route: Delete a User / Customer Account (NEW)
+// 8. Admin Route: Delete a User / Customer Account
 app.delete('/api/admin/users/:id', verifyToken, (req, res) => {
     if (req.user.role !== 'admin') {
         return res.status(403).json({ error: 'Access forbidden. Admins only.' });
     }
 
     const userId = req.params.id;
-    // First remove associated books to keep database clean
-    db.run(`DELETE FROM books WHERE user_id = ?`, [userId], (bookErr) => {
+    db.run(`DELETE FROM books WHERE user_id = ?`, [userId], () => {
         db.run(`DELETE FROM users WHERE id = ?`, [userId], function(err) {
             if (err || this.changes === 0) {
                 return res.status(404).json({ error: 'User not found or database error.' });
@@ -276,55 +303,12 @@ app.delete('/api/admin/customers/:id', verifyToken, (req, res) => {
     });
 });
 
-// 9. Admin Route: Change/Update User Password (NEW)
-app.put('/api/admin/users/:id/password', verifyToken, async (req, res) => {
-    if (req.user.role !== 'admin') {
-        return res.status(403).json({ error: 'Access forbidden. Admins only.' });
-    }
+// 9. Admin Route: Change/Update User Password (Exact Frontend Match)
+app.put('/api/admin/change-customer-password', verifyToken, handlePasswordChange);
+app.post('/api/admin/change-customer-password', verifyToken, handlePasswordChange);
 
-    const userId = req.params.id;
-    const { password } = req.body;
-    if (!password) {
-        return res.status(400).json({ error: 'New password is required.' });
-    }
-
-    try {
-        const hashedPassword = await bcrypt.hash(password, 10);
-        db.run(`UPDATE users SET password = ? WHERE id = ?`, [hashedPassword, userId], function(err) {
-            if (err || this.changes === 0) {
-                return res.status(404).json({ error: 'User not found or database error.' });
-            }
-            console.log(`Admin updated password for user ID: ${userId}`);
-            res.json({ message: 'Password updated successfully!' });
-        });
-    } catch (error) {
-        res.status(500).json({ error: 'Server error updating password.' });
-    }
-});
-
-app.put('/api/admin/customers/:id/password', verifyToken, async (req, res) => {
-    if (req.user.role !== 'admin') {
-        return res.status(403).json({ error: 'Access forbidden. Admins only.' });
-    }
-
-    const userId = req.params.id;
-    const { password } = req.body;
-    if (!password) {
-        return res.status(400).json({ error: 'New password is required.' });
-    }
-
-    try {
-        const hashedPassword = await bcrypt.hash(password, 10);
-        db.run(`UPDATE users SET password = ? WHERE id = ?`, [hashedPassword, userId], function(err) {
-            if (err || this.changes === 0) {
-                return res.status(404).json({ error: 'User not found.' });
-            }
-            res.json({ message: 'Password updated successfully!' });
-        });
-    } catch (error) {
-        res.status(500).json({ error: 'Server error updating password.' });
-    }
-});
+app.put('/api/admin/users/:id/password', verifyToken, handlePasswordChange);
+app.put('/api/admin/customers/:id/password', verifyToken, handlePasswordChange);
 
 // 10. Admin Route: Assign a Book / Heyzine Link to a User
 app.post('/api/admin/books', verifyToken, (req, res) => {
