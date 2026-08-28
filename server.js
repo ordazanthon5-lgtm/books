@@ -202,6 +202,31 @@ app.get('/api/me', verifyToken, (req, res) => {
     // req.user already contains id, username, and role from the JWT token
     res.json(req.user);
 });
+// 8. Admin Route: Create a New Customer/User Account
+app.post('/api/admin/users', verifyToken, async (req, res) => {
+    if (req.user.role !== 'admin') {
+        return res.status(403).json({ error: 'Access forbidden. Admins only.' });
+    }
+
+    const { username, password } = req.body;
+    if (!username || !password) {
+        return res.status(400).json({ error: 'Username and password are required.' });
+    }
+
+    try {
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const query = `INSERT INTO users (username, password, role) VALUES (?, ?, 'customer')`;
+        
+        db.run(query, [username, hashedPassword], function(err) {
+            if (err) {
+                return res.status(400).json({ error: 'Username already exists or database error.' });
+            }
+            res.json({ message: 'Customer account created successfully!', userId: this.lastID });
+        });
+    } catch (error) {
+        res.status(500).json({ error: 'Server error during customer creation.' });
+    }
+});
 
 // --- SAFETY NET: Force JSON for any missing /api/... routes instead of HTML ---
 app.use('/api/*', (req, res) => {
