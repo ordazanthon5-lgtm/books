@@ -197,6 +197,11 @@ app.get('/api/admin/users', verifyToken, (req, res) => {
         res.json(rows);
     });
 });
+// 7. Get Current Logged-in User Route
+app.get('/api/me', verifyToken, (req, res) => {
+    // req.user already contains id, username, and role from the JWT token
+    res.json(req.user);
+});
 
 // --- SAFETY NET: Force JSON for any missing /api/... routes instead of HTML ---
 app.use('/api/*', (req, res) => {
