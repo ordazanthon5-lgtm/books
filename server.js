@@ -35,7 +35,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
     }
 });
 
-// --- INITIALIZE DATABASE TABLES & SEED DEFAULT ADMIN ---
+// --- INITIALIZE DATABASE TABLES ---
 db.serialize(() => {
     // Users table (handles admins and customer accounts)
     db.run(`CREATE TABLE IF NOT EXISTS users (
@@ -43,26 +43,7 @@ db.serialize(() => {
         username TEXT UNIQUE,
         password TEXT,
         role TEXT DEFAULT 'customer'
-    )`, async () => {
-        // Automatically create a default admin if one doesn't exist yet
-        db.get(`SELECT * FROM users WHERE role = 'admin'`, async (err, row) => {
-            if (!row) {
-                try {
-                    const hashedPassword = await bcrypt.hash('admin123', 10);
-                    db.run(`INSERT OR IGNORE INTO users (username, password, role) VALUES (?, ?, ?)`, 
-                        ['admin', hashedPassword, 'admin'], 
-                        (insertErr) => {
-                            if (!insertErr) {
-                                console.log('Default admin account auto-created: username: admin / password: admin123');
-                            }
-                        }
-                    );
-                } catch (hashErr) {
-                    console.error('Error hashing default admin password:', hashErr);
-                }
-            }
-        });
-    });
+    )`);
 
     // Books table (handles Heyzine flipbook links linked to user accounts)
     db.run(`CREATE TABLE IF NOT EXISTS books (
@@ -124,40 +105,30 @@ app.post('/api/register', async (req, res) => {
 
 // 3. User Login Route
 app.post('/api/login', (req, res) => {
-    try {
-        const { username, password } = req.body;
-        if (!username || !password) {
-            return res.status(400).json({ error: 'Username and password are required.' });
+    const { username, password } = req.body;
+    if (!username || !password) {
+        return res.status(400).json({ error: 'Username and password are required.' });
+    }
+
+    const query = `SELECT * FROM users WHERE username = ?`;
+    db.get(query, [username], async (err, user) => {
+        if (err || !user) {
+            return res.status(400).json({ error: 'Invalid username or password.' });
         }
 
-        const query = `SELECT * FROM users WHERE username = ?`;
-        db.get(query, [username], async (err, user) => {
-            if (err) {
-                return res.status(500).json({ error: 'Database error during login.' });
-            }
-            if (!user) {
-                return res.status(400).json({ error: 'Invalid username or password.' });
-            }
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) {
+            return res.status(400).json({ error: 'Invalid username or password.' });
+        }
 
-            try {
-                const isMatch = await bcrypt.compare(password, user.password);
-                if (!isMatch) {
-                    return res.status(400).json({ error: 'Invalid username or password.' });
-                }
-
-                const token = jwt.sign(
-                    { id: user.id, username: user.username, role: user.role }, 
-                    JWT_SECRET, 
-                    { expiresIn: '24h' }
-                );
-                return res.json({ message: 'Login successful!', token, role: user.role });
-            } catch (bcryptErr) {
-                return res.status(500).json({ error: 'Error processing password.' });
-            }
-        });
-    } catch (routeErr) {
-        return res.status(500).json({ error: 'Server error on login route.' });
-    }
+        // Generate JWT token valid for 24 hours
+        const token = jwt.sign(
+            { id: user.id, username: user.username, role: user.role }, 
+            JWT_SECRET, 
+            { expiresIn: '24h' }
+        );
+        res.json({ message: 'Login successful!', token, role: user.role });
+    });
 });
 
 // 4. Get Books Assigned to Logged-in User
