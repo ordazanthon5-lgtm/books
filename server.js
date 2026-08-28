@@ -35,7 +35,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
     }
 });
 
-// --- INITIALIZE DATABASE TABLES ---
+// --- INITIALIZE DATABASE TABLES & SEED DEFAULT ADMIN ---
 db.serialize(() => {
     // Users table (handles admins and customer accounts)
     db.run(`CREATE TABLE IF NOT EXISTS users (
@@ -43,7 +43,26 @@ db.serialize(() => {
         username TEXT UNIQUE,
         password TEXT,
         role TEXT DEFAULT 'customer'
-    )`);
+    )`, async () => {
+        // Automatically create a default admin if one doesn't exist yet
+        db.get(`SELECT * FROM users WHERE role = 'admin'`, async (err, row) => {
+            if (!row) {
+                try {
+                    const hashedPassword = await bcrypt.hash('admin123', 10);
+                    db.run(`INSERT OR IGNORE INTO users (username, password, role) VALUES (?, ?, ?)`, 
+                        ['admin', hashedPassword, 'admin'], 
+                        (insertErr) => {
+                            if (!insertErr) {
+                                console.log('Default admin account auto-created: username: admin / password: admin123');
+                            }
+                        }
+                    );
+                } catch (hashErr) {
+                    console.error('Error hashing default admin password:', hashErr);
+                }
+            }
+        });
+    });
 
     // Books table (handles Heyzine flipbook links linked to user accounts)
     db.run(`CREATE TABLE IF NOT EXISTS books (
