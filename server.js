@@ -161,7 +161,7 @@ app.get('/api/me', verifyToken, (req, res) => {
     res.json(req.user);
 });
 
-// 5. Get Books for Logged-in User
+// 5. Get Books for Logged-in User (Standard & Alias routes)
 app.get('/api/books', verifyToken, (req, res) => {
     const userId = req.user.id;
     const query = `SELECT * FROM books WHERE user_id = ?`;
@@ -174,7 +174,19 @@ app.get('/api/books', verifyToken, (req, res) => {
     });
 });
 
-// 6. Admin Route: Get All Users (For Dropdowns & Management)
+app.get('/api/customer/books', verifyToken, (req, res) => {
+    const userId = req.user.id;
+    const query = `SELECT * FROM books WHERE user_id = ?`;
+    
+    db.all(query, [userId], (err, rows) => {
+        if (err) {
+            return res.status(500).json({ error: 'Failed to retrieve books.' });
+        }
+        res.json(rows);
+    });
+});
+
+// 6. Admin Route: Get All Users (Standard & Alias routes for frontend compatibility)
 app.get('/api/admin/users', verifyToken, (req, res) => {
     if (req.user.role !== 'admin') {
         return res.status(403).json({ error: 'Access forbidden. Admins only.' });
@@ -185,6 +197,21 @@ app.get('/api/admin/users', verifyToken, (req, res) => {
         if (err) {
             console.error('Database error fetching users:', err.message);
             return res.status(500).json({ error: 'Failed to retrieve users.' });
+        }
+        res.json(rows);
+    });
+});
+
+app.get('/api/admin/customers', verifyToken, (req, res) => {
+    if (req.user.role !== 'admin') {
+        return res.status(403).json({ error: 'Access forbidden. Admins only.' });
+    }
+
+    const query = `SELECT id, username, role FROM users`;
+    db.all(query, [], (err, rows) => {
+        if (err) {
+            console.error('Database error fetching customers:', err.message);
+            return res.status(500).json({ error: 'Failed to retrieve customers.' });
         }
         res.json(rows);
     });
