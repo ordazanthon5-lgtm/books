@@ -336,23 +336,42 @@ app.post('/api/admin/change-customer-password', verifyToken, handlePasswordChang
 app.put('/api/admin/users/:id/password', verifyToken, handlePasswordChange);
 app.put('/api/admin/customers/:id/password', verifyToken, handlePasswordChange);
 
-// 10. Admin Route: Assign a Book / Heyzine Link to a User
+// 10. Admin Route: Assign a Book / Heyzine Link to a User (Ultra-Flexible)
 app.post('/api/admin/books', verifyToken, (req, res) => {
     if (req.user.role !== 'admin') {
         return res.status(403).json({ error: 'Access forbidden. Admins only.' });
     }
 
-    const { user_id, title, heyzine_url } = req.body;
-    if (!user_id || !title || !heyzine_url) {
+    console.log("INCOMING BOOK ASSIGNMENT BODY:", req.body);
+
+    const identifier = req.body.user_id || req.body.userId || req.body.id || req.body.customer_id || req.body.username || req.body.customer;
+    const title = req.body.title || req.body.bookTitle;
+    const heyzine_url = req.body.heyzine_url || req.body.heyzineUrl || req.body.url || req.body.link;
+
+    if (!identifier || !title || !heyzine_url) {
         return res.status(400).json({ error: 'User ID, title, and Heyzine URL are required.' });
     }
 
-    const query = `INSERT INTO books (user_id, title, heyzine_url) VALUES (?, ?, ?)`;
-    db.run(query, [user_id, title, heyzine_url], function(err) {
-        if (err) {
-            return res.status(500).json({ error: 'Failed to add book.' });
+    // Resolve identifier to a numeric user id if the frontend passed a username string (e.g. "Trish")
+    const userQuery = isNaN(identifier) 
+        ? `SELECT id FROM users WHERE username = ?` 
+        : `SELECT id FROM users WHERE id = ?`;
+
+    db.get(userQuery, [identifier], (err, userRow) => {
+        if (err || !userRow) {
+            return res.status(404).json({ error: 'Selected customer account not found.' });
         }
-        res.json({ message: 'Book added successfully!', bookId: this.lastID });
+
+        const userId = userRow.id;
+        const insertQuery = `INSERT INTO books (user_id, title, heyzine_url) VALUES (?, ?, ?)`;
+        
+        db.run(insertQuery, [userId, title, heyzine_url], function(dbErr) {
+            if (dbErr) {
+                return res.status(500).json({ error: 'Failed to add book to database.' });
+            }
+            console.log(`Admin assigned book "${title}" to user ID: ${userId}`);
+            res.json({ message: 'Book added successfully!', bookId: this.lastID });
+        });
     });
 });
 
