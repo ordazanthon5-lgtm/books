@@ -161,7 +161,7 @@ app.get('/api/me', verifyToken, (req, res) => {
     res.json(req.user);
 });
 
-// 5. Get Books for Logged-in User (Standard & Alias routes)
+// 5. Get Books for Logged-in User
 app.get('/api/books', verifyToken, (req, res) => {
     const userId = req.user.id;
     const query = `SELECT * FROM books WHERE user_id = ?`;
@@ -186,7 +186,7 @@ app.get('/api/customer/books', verifyToken, (req, res) => {
     });
 });
 
-// 6. Admin Route: Get All Users (Standard & Alias routes for frontend compatibility)
+// 6. Admin Route: Get All Users
 app.get('/api/admin/users', verifyToken, (req, res) => {
     if (req.user.role !== 'admin') {
         return res.status(403).json({ error: 'Access forbidden. Admins only.' });
@@ -195,7 +195,6 @@ app.get('/api/admin/users', verifyToken, (req, res) => {
     const query = `SELECT id, username, role FROM users`;
     db.all(query, [], (err, rows) => {
         if (err) {
-            console.error('Database error fetching users:', err.message);
             return res.status(500).json({ error: 'Failed to retrieve users.' });
         }
         res.json(rows);
@@ -210,7 +209,6 @@ app.get('/api/admin/customers', verifyToken, (req, res) => {
     const query = `SELECT id, username, role FROM users`;
     db.all(query, [], (err, rows) => {
         if (err) {
-            console.error('Database error fetching customers:', err.message);
             return res.status(500).json({ error: 'Failed to retrieve customers.' });
         }
         res.json(rows);
@@ -236,7 +234,6 @@ app.post('/api/admin/users', verifyToken, async (req, res) => {
             if (err) {
                 return res.status(400).json({ error: 'Username already exists or database error.' });
             }
-            console.log(`Admin created new customer account: ${username} (ID: ${this.lastID})`);
             res.json({ message: 'Customer account created successfully!', userId: this.lastID });
         });
     } catch (error) {
@@ -244,7 +241,92 @@ app.post('/api/admin/users', verifyToken, async (req, res) => {
     }
 });
 
-// 8. Admin Route: Assign a Book / Heyzine Link to a User
+// 8. Admin Route: Delete a User / Customer Account (NEW)
+app.delete('/api/admin/users/:id', verifyToken, (req, res) => {
+    if (req.user.role !== 'admin') {
+        return res.status(403).json({ error: 'Access forbidden. Admins only.' });
+    }
+
+    const userId = req.params.id;
+    // First remove associated books to keep database clean
+    db.run(`DELETE FROM books WHERE user_id = ?`, [userId], (bookErr) => {
+        db.run(`DELETE FROM users WHERE id = ?`, [userId], function(err) {
+            if (err || this.changes === 0) {
+                return res.status(404).json({ error: 'User not found or database error.' });
+            }
+            console.log(`Admin deleted user ID: ${userId}`);
+            res.json({ message: 'User account deleted successfully!' });
+        });
+    });
+});
+
+app.delete('/api/admin/customers/:id', verifyToken, (req, res) => {
+    if (req.user.role !== 'admin') {
+        return res.status(403).json({ error: 'Access forbidden. Admins only.' });
+    }
+
+    const userId = req.params.id;
+    db.run(`DELETE FROM books WHERE user_id = ?`, [userId], () => {
+        db.run(`DELETE FROM users WHERE id = ?`, [userId], function(err) {
+            if (err || this.changes === 0) {
+                return res.status(404).json({ error: 'Customer not found.' });
+            }
+            res.json({ message: 'Customer deleted successfully!' });
+        });
+    });
+});
+
+// 9. Admin Route: Change/Update User Password (NEW)
+app.put('/api/admin/users/:id/password', verifyToken, async (req, res) => {
+    if (req.user.role !== 'admin') {
+        return res.status(403).json({ error: 'Access forbidden. Admins only.' });
+    }
+
+    const userId = req.params.id;
+    const { password } = req.body;
+    if (!password) {
+        return res.status(400).json({ error: 'New password is required.' });
+    }
+
+    try {
+        const hashedPassword = await bcrypt.hash(password, 10);
+        db.run(`UPDATE users SET password = ? WHERE id = ?`, [hashedPassword, userId], function(err) {
+            if (err || this.changes === 0) {
+                return res.status(404).json({ error: 'User not found or database error.' });
+            }
+            console.log(`Admin updated password for user ID: ${userId}`);
+            res.json({ message: 'Password updated successfully!' });
+        });
+    } catch (error) {
+        res.status(500).json({ error: 'Server error updating password.' });
+    }
+});
+
+app.put('/api/admin/customers/:id/password', verifyToken, async (req, res) => {
+    if (req.user.role !== 'admin') {
+        return res.status(403).json({ error: 'Access forbidden. Admins only.' });
+    }
+
+    const userId = req.params.id;
+    const { password } = req.body;
+    if (!password) {
+        return res.status(400).json({ error: 'New password is required.' });
+    }
+
+    try {
+        const hashedPassword = await bcrypt.hash(password, 10);
+        db.run(`UPDATE users SET password = ? WHERE id = ?`, [hashedPassword, userId], function(err) {
+            if (err || this.changes === 0) {
+                return res.status(404).json({ error: 'User not found.' });
+            }
+            res.json({ message: 'Password updated successfully!' });
+        });
+    } catch (error) {
+        res.status(500).json({ error: 'Server error updating password.' });
+    }
+});
+
+// 10. Admin Route: Assign a Book / Heyzine Link to a User
 app.post('/api/admin/books', verifyToken, (req, res) => {
     if (req.user.role !== 'admin') {
         return res.status(403).json({ error: 'Access forbidden. Admins only.' });
@@ -258,10 +340,8 @@ app.post('/api/admin/books', verifyToken, (req, res) => {
     const query = `INSERT INTO books (user_id, title, heyzine_url) VALUES (?, ?, ?)`;
     db.run(query, [user_id, title, heyzine_url], function(err) {
         if (err) {
-            console.error('Database error inserting book:', err.message);
             return res.status(500).json({ error: 'Failed to add book.' });
         }
-        console.log(`Admin assigned book "${title}" to user ID ${user_id}`);
         res.json({ message: 'Book added successfully!', bookId: this.lastID });
     });
 });
