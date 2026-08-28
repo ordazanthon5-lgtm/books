@@ -67,9 +67,15 @@ db.serialize(() => {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER,
         title TEXT,
+        author TEXT,
         heyzine_url TEXT,
         FOREIGN KEY(user_id) REFERENCES users(id)
-    )`);
+    )`, () => {
+        // Safe migration if table already existed without 'author' column
+        db.run(`ALTER TABLE books ADD COLUMN author TEXT`, (alterErr) => {
+            // Ignored if column already exists
+        });
+    });
 });
 
 // --- AUTHENTICATION MIDDLEWARE ---
@@ -132,7 +138,6 @@ function handlePasswordChange(req, res) {
     let identifier = req.body.userId || req.body.user_id || req.body.id || req.body.customer_id || req.body.username || req.body.customer || req.body.name || req.params.id;
     let password = req.body.password || req.body.newPassword || req.body.new_password || req.body.pass;
 
-    // Fallback search through keys if names are completely custom
     if (!identifier && req.body && Object.keys(req.body).length > 0) {
         const keys = Object.keys(req.body);
         for (let k of keys) {
@@ -336,7 +341,7 @@ app.post('/api/admin/change-customer-password', verifyToken, handlePasswordChang
 app.put('/api/admin/users/:id/password', verifyToken, handlePasswordChange);
 app.put('/api/admin/customers/:id/password', verifyToken, handlePasswordChange);
 
-// 10. Admin Route: Assign a Book / Heyzine Link to a User (Ultra-Flexible)
+// 10. Admin Route: Assign a Book / Heyzine Link to a User (Ultra-Flexible + Author Support)
 app.post('/api/admin/books', verifyToken, (req, res) => {
     if (req.user.role !== 'admin') {
         return res.status(403).json({ error: 'Access forbidden. Admins only.' });
@@ -346,13 +351,13 @@ app.post('/api/admin/books', verifyToken, (req, res) => {
 
     const identifier = req.body.user_id || req.body.userId || req.body.id || req.body.customer_id || req.body.username || req.body.customer;
     const title = req.body.title || req.body.bookTitle;
+    const author = req.body.author || req.body.bookAuthor || '';
     const heyzine_url = req.body.heyzine_url || req.body.heyzineUrl || req.body.url || req.body.link;
 
     if (!identifier || !title || !heyzine_url) {
         return res.status(400).json({ error: 'User ID, title, and Heyzine URL are required.' });
     }
 
-    // Resolve identifier to a numeric user id if the frontend passed a username string (e.g. "Trish")
     const userQuery = isNaN(identifier) 
         ? `SELECT id FROM users WHERE username = ?` 
         : `SELECT id FROM users WHERE id = ?`;
@@ -363,13 +368,14 @@ app.post('/api/admin/books', verifyToken, (req, res) => {
         }
 
         const userId = userRow.id;
-        const insertQuery = `INSERT INTO books (user_id, title, heyzine_url) VALUES (?, ?, ?)`;
+        const insertQuery = `INSERT INTO books (user_id, title, author, heyzine_url) VALUES (?, ?, ?, ?)`;
         
-        db.run(insertQuery, [userId, title, heyzine_url], function(dbErr) {
+        db.run(insertQuery, [userId, title, author, heyzine_url], function(dbErr) {
             if (dbErr) {
+                console.error("Database error adding book:", dbErr);
                 return res.status(500).json({ error: 'Failed to add book to database.' });
             }
-            console.log(`Admin assigned book "${title}" to user ID: ${userId}`);
+            console.log(`Admin assigned book "${title}" by "${author}" to user ID: ${userId}`);
             res.json({ message: 'Book added successfully!', bookId: this.lastID });
         });
     });
