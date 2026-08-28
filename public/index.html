@@ -299,7 +299,7 @@
 
             listEl.innerHTML = customers.length ? customers.map(c => `
                 <div class="user-item">
-                    <span><strong>${c.username}</strong> (${c.bookCount} books)</span>
+                    <span><strong>${c.username}</strong> (${c.bookCount || 0} books)</span>
                     <button class="btn-delete" onclick="deleteUser(${c.id})">Delete</button>
                 </div>
             `).join('') : '<p style="color:#64748b;">No customers yet.</p>';
@@ -399,26 +399,36 @@
             }
         });
 
-        // Customer Actions
+        // Customer Actions (Safely handles null/missing fields)
         async function loadCustomerBooks() {
             const res = await fetch('/api/customer/books', { headers: { 'Authorization': `Bearer ${getToken()}` } });
             const books = await res.json();
             const grid = document.getElementById('customer-books-grid');
 
-            if (!books.length) {
+            if (!books || !books.length) {
                 grid.innerHTML = '<p style="color:#64748b;">No assigned books in your library.</p>';
                 return;
             }
 
-            grid.innerHTML = books.map(b => `
-                <div class="book-card">
-                    <div>
-                        <h3 style="color:#38bdf8; margin-bottom: 0.25rem;">${b.title}</h3>
-                        <p style="color:#94a3b8">by ${b.author}</p>
+            grid.innerHTML = books.map(b => {
+                const title = b.title || 'Untitled Book';
+                const author = b.author || 'Unknown Author';
+                const url = b.heyzine_url || b.url || '';
+                
+                const safeTitle = String(title).replace(/'/g, "\\'");
+                const safeAuthor = String(author).replace(/'/g, "\\'");
+                const safeUrl = String(url).replace(/'/g, "\\'");
+
+                return `
+                    <div class="book-card">
+                        <div>
+                            <h3 style="color:#38bdf8; margin-bottom: 0.25rem;">${title}</h3>
+                            <p style="color:#94a3b8">by ${author}</p>
+                        </div>
+                        <button class="btn-read" onclick="openReader('${safeUrl}', '${safeTitle}', '${safeAuthor}')">Read Flipbook</button>
                     </div>
-                    <button class="btn-read" onclick="openReader('${b.url}', '${b.title.replace(/'/g, "\\'")}', '${b.author.replace(/'/g, "\\'")}')">Read Flipbook</button>
-                </div>
-            `).join('');
+                `;
+            }).join('');
         }
 
         // Reader Controls
