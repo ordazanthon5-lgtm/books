@@ -121,20 +121,38 @@ function handleLogin(req, res) {
     });
 }
 
-// --- PASSWORD CHANGE HANDLER (UPGRADED FOR ANY FRONTEND PAYLOAD) ---
+// --- ULTRA-ROBUST PASSWORD CHANGE HANDLER ---
 function handlePasswordChange(req, res) {
     if (req.user.role !== 'admin') {
         return res.status(403).json({ error: 'Access forbidden. Admins only.' });
     }
 
-    const identifier = req.body.userId || req.body.user_id || req.body.id || req.body.customer_id || req.body.username || req.body.customer;
-    const password = req.body.password || req.body.newPassword || req.body.new_password;
+    console.log("INCOMING PASSWORD CHANGE REQUEST BODY:", req.body);
 
-    if (!identifier || !password) {
-        return res.status(400).json({ error: 'User ID and password are required.' });
+    let identifier = req.body.userId || req.body.user_id || req.body.id || req.body.customer_id || req.body.username || req.body.customer || req.body.name || req.params.id;
+    let password = req.body.password || req.body.newPassword || req.body.new_password || req.body.pass;
+
+    // Fallback search through keys if names are completely custom
+    if (!identifier && req.body && Object.keys(req.body).length > 0) {
+        const keys = Object.keys(req.body);
+        for (let k of keys) {
+            const lower = k.toLowerCase();
+            if (lower.includes('user') || lower.includes('id') || lower.includes('name') || lower.includes('customer')) {
+                identifier = req.body[k];
+            }
+            if (lower.includes('pass')) {
+                password = req.body[k];
+            }
+        }
+        if (!identifier && keys.length >= 1) identifier = req.body[keys[0]];
+        if (!password && keys.length >= 2) password = req.body[keys[1]];
     }
 
-    bcrypt.hash(password, 10, (hashErr, hashedPassword) => {
+    if (!identifier || password === undefined || password === null || password === '') {
+        return res.status(400).json({ error: `User identifier and password are required. Received keys: ${Object.keys(req.body || {}).join(', ')}` });
+    }
+
+    bcrypt.hash(String(password), 10, (hashErr, hashedPassword) => {
         if (hashErr) {
             return res.status(500).json({ error: 'Server error processing password.' });
         }
@@ -144,8 +162,12 @@ function handlePasswordChange(req, res) {
             : `UPDATE users SET password = ? WHERE id = ?`;
 
         db.run(query, [hashedPassword, identifier], function(err) {
-            if (err || this.changes === 0) {
-                return res.status(404).json({ error: 'User not found or database error.' });
+            if (err) {
+                console.error("Database error updating password:", err);
+                return res.status(500).json({ error: 'Database error updating password.' });
+            }
+            if (this.changes === 0) {
+                return res.status(404).json({ error: `User not found for identifier: ${identifier}` });
             }
             console.log(`Admin updated password for user identifier: ${identifier}`);
             res.json({ message: 'Password updated successfully!' });
@@ -307,7 +329,7 @@ app.delete('/api/admin/customers/:id', verifyToken, (req, res) => {
     });
 });
 
-// 9. Admin Route: Change/Update User Password (Exact Frontend Match)
+// 9. Admin Route: Change/Update User Password
 app.put('/api/admin/change-customer-password', verifyToken, handlePasswordChange);
 app.post('/api/admin/change-customer-password', verifyToken, handlePasswordChange);
 
