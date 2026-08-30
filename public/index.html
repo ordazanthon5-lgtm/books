@@ -86,7 +86,6 @@
     </header>
 
     <main>
-        <!-- LOGIN VIEW -->
         <div id="login-view" class="split-login-container">
             <div class="login-hero">
                 <div class="hero-top-logo">📖 501Books</div>
@@ -120,9 +119,7 @@
             </div>
         </div>
 
-        <!-- DASHBOARDS -->
         <div id="dashboard-container" class="dashboard-main hidden">
-            <!-- ADMIN VIEW -->
             <div id="admin-view" class="hidden">
                 <div class="card">
                     <h2>Customer Accounts</h2>
@@ -171,7 +168,6 @@
                 </div>
             </div>
 
-            <!-- CUSTOMER VIEW -->
             <div id="customer-view" class="hidden">
                 <div class="card">
                     <h2>My Book Library</h2>
@@ -179,14 +175,16 @@
                 </div>
             </div>
 
-            <!-- EMBEDDED READER VIEW -->
             <div id="reader-view" class="hidden card reader-card">
                 <div class="reader-header">
                     <div>
                         <h2 id="reader-book-title" style="margin-bottom:0.1rem; font-size:1.1rem;"></h2>
                         <span id="reader-book-author" style="color:#94a3b8; font-size:0.8rem;"></span>
                     </div>
-                    <button class="btn-nav" onclick="closeReader()">← Library</button>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button class="btn-nav" style="background: #10b981;" onclick="saveCurrentBookmark()">🔖 Save Page</button>
+                        <button class="btn-nav" onclick="closeReader()">← Library</button>
+                    </div>
                 </div>
                 
                 <div class="iframe-wrapper" oncontextmenu="return false;">
@@ -390,31 +388,34 @@
 
             let finalUrl = url;
             if (startPage && startPage > 1) {
-                finalUrl = url.split('#')[0] + `#page/${startPage}`;
+                let cleanBase = url.split('#')[0];
+                finalUrl = `${cleanBase}#page/${startPage}`;
             }
 
             const iframe = document.getElementById('heyzine-iframe');
             iframe.src = finalUrl;
         }
 
-        // Listen to Heyzine page changes and sync bookmark automatically
-        window.addEventListener('message', async (event) => {
-            if (!event.origin.includes('heyzine.com')) return;
-            try {
-                const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
-                const pageNum = data.page || data.pageIndex;
-                if (pageNum && activeBookId) {
-                    await fetch(`/api/customer/books/${activeBookId}/bookmark`, {
-                        method: 'POST',
-                        headers: { 
-                            'Content-Type': 'application/json', 
-                            'Authorization': `Bearer ${getToken()}` 
-                        },
-                        body: JSON.stringify({ page: pageNum })
-                    });
-                }
-            } catch (e) {}
-        });
+        async function saveCurrentBookmark() {
+            if (!activeBookId) return;
+            let pageInput = prompt("Enter the page number you want to bookmark:", "1");
+            if (!pageInput || isNaN(pageInput)) return;
+
+            const res = await fetch(`/api/customer/books/${activeBookId}/bookmark`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json', 
+                    'Authorization': `Bearer ${getToken()}` 
+                },
+                body: JSON.stringify({ page: parseInt(pageInput) })
+            });
+
+            if (res.ok) {
+                alert(`Bookmark saved to Page ${pageInput}!`);
+            } else {
+                alert('Failed to save bookmark.');
+            }
+        }
 
         function closeReader() {
             activeBookId = null;
