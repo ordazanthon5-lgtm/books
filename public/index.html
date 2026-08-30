@@ -7,10 +7,10 @@
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', -apple-system, sans-serif; }
         body { background: #0b0f19; color: #f8fafc; min-height: 100vh; display: flex; flex-direction: column; overflow-x: hidden; }
-        body.reader-mode { background: #030712 !important; }
+        body.reader-mode { background: #030712 !important; overflow: hidden !important; }
 
-        /* Navigation Header (For Dashboard view) */
-        header { background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(12px); padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255, 255, 255, 0.08); gap: 1rem; }
+        /* Navigation Header */
+        header { background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(12px); padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255, 255, 255, 0.08); gap: 1rem; flex-shrink: 0; }
         .logo { font-size: 1.6rem; font-weight: 800; background: linear-gradient(135deg, #38bdf8, #818cf8, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
         .user-info { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
         .role-badge { background: rgba(99, 102, 241, 0.2); color: #a5b4fc; padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; }
@@ -18,53 +18,47 @@
         button.btn-logout:hover { background: #dc2626; }
 
         /* Main Container */
-        main { flex: 1; display: flex; flex-direction: column; width: 100%; }
+        main { flex: 1; display: flex; flex-direction: column; width: 100%; min-height: 0; }
         .card { background: rgba(30, 41, 59, 0.65); backdrop-filter: blur(16px); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2); }
         h2 { margin-bottom: 1.2rem; font-size: 1.3rem; }
         .form-group { margin-bottom: 1.25rem; }
         label { display: block; margin-bottom: 0.5rem; font-size: 0.85rem; color: #475569; font-weight: 600; }
-        input, select { width: 100%; padding: 0.85rem 1rem; border-radius: 10px; border: 1px solid #cbd5e1; background: #fff; color: #0f172a; font-size: 0.95rem; transition: all 0.2s ease; }
+        input, select { width: 100%; padding: 0.85rem 1rem; border-radius: 10px; border: 1px solid #cbd5e1; background: #fff; color: #0f172a; font-size: 0.95rem; }
         input:focus, select:focus { outline: none; border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15); }
-        button.btn-primary { background: #6366f1; color: white; border: none; padding: 0.9rem 1.5rem; border-radius: 10px; cursor: pointer; font-weight: 600; width: 100%; font-size: 0.95rem; transition: background 0.2s, transform 0.1s; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3); }
+        button.btn-primary { background: #6366f1; color: white; border: none; padding: 0.9rem 1.5rem; border-radius: 10px; cursor: pointer; font-weight: 600; width: 100%; font-size: 0.95rem; }
         button.btn-primary:hover { background: #4f46e5; }
-        button.btn-primary:active { transform: scale(0.98); }
         .hidden { display: none !important; }
 
-        /* SPLIT SCREEN LOGIN LAYOUT */
+        /* SPLIT-SCREEN LOGIN */
         .split-login-container { display: flex; flex: 1; width: 100%; min-height: 100vh; }
-        
-        /* Left Hero Panel */
-        .login-hero { flex: 1; background: #070913; padding: 4rem; display: flex; flex-direction: column; justify-content: space-between; position: relative; border-right: 1px solid rgba(255, 255, 255, 0.05); }
-        .hero-top-logo { font-size: 1.5rem; font-weight: 800; background: linear-gradient(135deg, #38bdf8, #818cf8, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; display: flex; align-items: center; gap: 0.5rem; }
+        .login-hero { flex: 1; background: #070913; padding: 4rem; display: flex; flex-direction: column; justify-content: space-between; border-right: 1px solid rgba(255, 255, 255, 0.05); }
+        .hero-top-logo { font-size: 1.5rem; font-weight: 800; background: linear-gradient(135deg, #38bdf8, #818cf8, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
         .hero-content { max-width: 480px; margin: auto 0; }
         .hero-tagline { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1.5px; color: #94a3b8; font-weight: 700; margin-bottom: 1rem; }
-        .hero-title { font-size: 3.5rem; font-weight: 900; line-height: 1.1; color: #f8fafc; margin-bottom: 1.5rem; letter-spacing: -1px; }
+        .hero-title { font-size: 3.5rem; font-weight: 900; line-height: 1.1; color: #f8fafc; margin-bottom: 1.5rem; }
         .hero-desc { color: #94a3b8; font-size: 1.05rem; line-height: 1.6; }
-
-        /* Right Form Panel */
         .login-form-panel { flex: 1; background: #f8fafc; color: #0f172a; display: flex; align-items: center; justify-content: center; padding: 3rem 2rem; }
         .login-card-light { background: #ffffff; border-radius: 20px; padding: 2.5rem; width: 100%; max-width: 440px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.06); border: 1px solid #e2e8f0; }
         .login-welcome-tag { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: #64748b; font-weight: 700; margin-bottom: 0.5rem; }
-        .login-card-title { font-size: 1.8rem; font-weight: 800; color: #0f172a; margin-bottom: 0.4rem; letter-spacing: -0.5px; }
+        .login-card-title { font-size: 1.8rem; font-weight: 800; color: #0f172a; margin-bottom: 0.4rem; }
         .login-card-subtitle { color: #64748b; font-size: 0.9rem; margin-bottom: 2rem; }
 
-        /* Grids & Lists for Dashboards */
+        /* DASHBOARDS */
         .dashboard-main { max-width: 1100px; margin: 0 auto; width: 100%; padding: 2rem; }
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1.25rem; }
         .user-list { display: flex; flex-direction: column; gap: 0.75rem; }
-        .user-item { display: flex; justify-content: space-between; align-items: center; background: rgba(15, 23, 42, 0.6); padding: 0.85rem 1.2rem; border-radius: 8px; gap: 0.5rem; }
-        .btn-delete { background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid #ef4444; padding: 0.4rem 0.8rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem; white-space: nowrap; transition: background 0.2s; }
-        .btn-delete:hover { background: rgba(239, 68, 68, 0.4); }
-        .book-card { background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 10px; padding: 1.25rem; display: flex; flex-direction: column; justify-content: space-between; min-height: 150px; }
-        .btn-read { background: #10b981; color: white; border: none; padding: 0.65rem 1rem; border-radius: 6px; cursor: pointer; font-weight: 600; width: 100%; margin-top: 1rem; transition: background 0.2s; }
+        .user-item { display: flex; justify-content: space-between; align-items: center; background: rgba(15, 23, 42, 0.6); padding: 0.85rem 1.2rem; border-radius: 8px; }
+        .btn-delete { background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid #ef4444; padding: 0.4rem 0.8rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem; }
+        .book-card { background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 10px; padding: 1.25rem; display: flex; flex-direction: column; justify-content: space-between; min-height: 160px; }
+        .btn-read { background: #10b981; color: white; border: none; padding: 0.65rem 1rem; border-radius: 6px; cursor: pointer; font-weight: 600; width: 100%; margin-top: 1rem; }
         .btn-read:hover { background: #059669; }
 
-        /* Embedded Reader Styling */
-        .reader-card { padding: 1rem 1.25rem !important; }
-        .reader-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; gap: 0.5rem; }
-        .iframe-wrapper { width: 100%; height: 78vh; border-radius: 8px; overflow: hidden; background: #000; }
-        .iframe-wrapper iframe { width: 100%; height: 100%; border: none; }
-        .btn-nav { background: #0284c7; color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.85rem; transition: background 0.2s; }
+        /* EMBEDDED HEYZINE READER - FULL SCREEN NO SCROLL */
+        .reader-card { padding: 0.75rem 1rem !important; flex: 1; display: flex; flex-direction: column; border: none !important; background: transparent !important; box-shadow: none !important; margin: 0 !important; height: calc(100vh - 70px); }
+        .reader-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; gap: 0.5rem; flex-shrink: 0; }
+        .iframe-wrapper { flex: 1; width: 100%; border-radius: 8px; overflow: hidden; background: #000; min-height: 0; }
+        .iframe-wrapper iframe { width: 100%; height: 100%; border: none; display: block; }
+        .btn-nav { background: #0284c7; color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.85rem; }
         .btn-nav:hover { background: #0369a1; }
 
         .alert { padding: 0.8rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.9rem; }
@@ -76,12 +70,13 @@
             .login-hero { padding: 2rem; min-height: 280px; }
             .hero-title { font-size: 2.5rem; }
             .login-form-panel { padding: 2rem 1rem; }
+            .dashboard-main { padding: 1rem; }
+            .reader-card { height: calc(100vh - 65px); padding: 0.5rem !important; }
         }
     </style>
 </head>
 <body>
 
-    <!-- Header only appears when logged in -->
     <header id="app-header" class="hidden">
         <div class="logo">501Books</div>
         <div id="user-nav" class="user-info">
@@ -91,7 +86,7 @@
     </header>
 
     <main>
-        <!-- SPLIT-SCREEN LOGIN VIEW -->
+        <!-- LOGIN VIEW -->
         <div id="login-view" class="split-login-container">
             <div class="login-hero">
                 <div class="hero-top-logo">📖 501Books</div>
@@ -113,7 +108,7 @@
                     <form id="login-form">
                         <div class="form-group">
                             <label>Username</label>
-                            <input type="text" id="login-username" placeholder="admin or customer username" required>
+                            <input type="text" id="login-username" placeholder="Username" required>
                         </div>
                         <div class="form-group">
                             <label>Password</label>
@@ -125,13 +120,12 @@
             </div>
         </div>
 
-        <!-- DASHBOARDS WRAPPER -->
+        <!-- DASHBOARDS -->
         <div id="dashboard-container" class="dashboard-main hidden">
-            <!-- ADMIN DASHBOARD -->
+            <!-- ADMIN VIEW -->
             <div id="admin-view" class="hidden">
                 <div class="card">
                     <h2>Customer Accounts</h2>
-                    <div id="admin-delete-alert"></div>
                     <div id="customer-accounts-list" class="user-list"></div>
                 </div>
 
@@ -145,7 +139,6 @@
                     </form>
                 </div>
 
-                <!-- CHANGE CUSTOMER PASSWORD (ADMIN ONLY) -->
                 <div class="card">
                     <h2>Change Customer Password</h2>
                     <div id="admin-customer-pass-alert"></div>
@@ -155,10 +148,10 @@
                             <select id="change-pass-user-select" required></select>
                         </div>
                         <div class="form-group">
-                            <label style="color:#cbd5e1;">New Password for Customer</label>
+                            <label style="color:#cbd5e1;">New Password</label>
                             <input type="password" id="customer-new-pass" required>
                         </div>
-                        <button type="submit" class="btn-primary">Update Customer Password</button>
+                        <button type="submit" class="btn-primary">Update Password</button>
                     </form>
                 </div>
 
@@ -171,30 +164,14 @@
                         <div class="form-group"><label style="color:#cbd5e1;">Author</label><input type="text" id="book-author" required></div>
                         <div class="form-group">
                             <label style="color:#cbd5e1;">Heyzine Link or Embed Code</label>
-                            <input type="text" id="book-url" placeholder="e.g. https://heyzine.com/flip-book/12345.html" required>
+                            <input type="text" id="book-url" placeholder="https://heyzine.com/flip-book/..." required>
                         </div>
                         <button type="submit" class="btn-primary">Assign Book</button>
                     </form>
                 </div>
-
-                <div class="card">
-                    <h2>Change Admin Password</h2>
-                    <div id="admin-pass-alert"></div>
-                    <form id="change-admin-pass-form">
-                        <div class="form-group">
-                            <label style="color:#cbd5e1;">Current Password</label>
-                            <input type="password" id="admin-current-pass" required>
-                        </div>
-                        <div class="form-group">
-                            <label style="color:#cbd5e1;">New Password</label>
-                            <input type="password" id="admin-new-pass" required>
-                        </div>
-                        <button type="submit" class="btn-primary">Update Admin Password</button>
-                    </form>
-                </div>
             </div>
 
-            <!-- CUSTOMER DASHBOARD -->
+            <!-- CUSTOMER VIEW -->
             <div id="customer-view" class="hidden">
                 <div class="card">
                     <h2>My Book Library</h2>
@@ -202,14 +179,14 @@
                 </div>
             </div>
 
-            <!-- EMBEDDED HEYZINE READER -->
+            <!-- EMBEDDED READER VIEW -->
             <div id="reader-view" class="hidden card reader-card">
                 <div class="reader-header">
                     <div>
-                        <h2 id="reader-book-title" style="margin-bottom:0.1rem;"></h2>
-                        <span id="reader-book-author" style="color:#94a3b8; font-size:0.9rem;"></span>
+                        <h2 id="reader-book-title" style="margin-bottom:0.1rem; font-size:1.1rem;"></h2>
+                        <span id="reader-book-author" style="color:#94a3b8; font-size:0.8rem;"></span>
                     </div>
-                    <button class="btn-nav" onclick="closeReader()">← Back to Library</button>
+                    <button class="btn-nav" onclick="closeReader()">← Library</button>
                 </div>
                 
                 <div class="iframe-wrapper" oncontextmenu="return false;">
@@ -226,7 +203,6 @@
             setTimeout(() => document.getElementById(elId).innerHTML = '', 4000);
         }
 
-        // Login Handler
         document.getElementById('login-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const res = await fetch('/api/login', {
@@ -246,7 +222,6 @@
 
         function logout() { localStorage.removeItem('token'); renderApp(); }
 
-        // Navigation
         async function renderApp() {
             const token = getToken();
             const loginView = document.getElementById('login-view');
@@ -287,7 +262,6 @@
             }
         }
 
-        // Admin Actions
         async function loadAdminData() {
             const token = getToken();
             const res = await fetch('/api/admin/customers', { headers: { 'Authorization': `Bearer ${token}` } });
@@ -299,7 +273,7 @@
 
             listEl.innerHTML = customers.length ? customers.map(c => `
                 <div class="user-item">
-                    <span><strong>${c.username}</strong> (${c.bookCount || 0} books)</span>
+                    <span><strong>${c.username}</strong></span>
                     <button class="btn-delete" onclick="deleteUser(${c.id})">Delete</button>
                 </div>
             `).join('') : '<p style="color:#64748b;">No customers yet.</p>';
@@ -327,15 +301,11 @@
             } else showAlert('admin-user-alert', data.error);
         });
 
-        // Change Customer Password Form Handler (Admin Only)
         document.getElementById('change-customer-pass-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const res = await fetch('/api/admin/change-customer-password', {
                 method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json', 
-                    'Authorization': `Bearer ${getToken()}` 
-                },
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
                 body: JSON.stringify({
                     customerId: document.getElementById('change-pass-user-select').value,
                     newPassword: document.getElementById('customer-new-pass').value
@@ -345,9 +315,7 @@
             if (res.ok) {
                 showAlert('admin-customer-pass-alert', data.message, 'success');
                 document.getElementById('change-customer-pass-form').reset();
-            } else {
-                showAlert('admin-customer-pass-alert', data.error);
-            }
+            } else showAlert('admin-customer-pass-alert', data.error);
         });
 
         async function deleteUser(id) {
@@ -376,30 +344,6 @@
             } else showAlert('admin-book-alert', data.error);
         });
 
-        // Password Change Event Listener (Admin Self Password)
-        document.getElementById('change-admin-pass-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const res = await fetch('/api/admin/change-password', {
-                method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json', 
-                    'Authorization': `Bearer ${getToken()}` 
-                },
-                body: JSON.stringify({
-                    currentPassword: document.getElementById('admin-current-pass').value,
-                    newPassword: document.getElementById('admin-new-pass').value
-                })
-            });
-            const data = await res.json();
-            if (res.ok) {
-                showAlert('admin-pass-alert', data.message, 'success');
-                document.getElementById('change-admin-pass-form').reset();
-            } else {
-                showAlert('admin-pass-alert', data.error);
-            }
-        });
-
-        // Customer Actions (Safely handles null/missing fields)
         async function loadCustomerBooks() {
             const res = await fetch('/api/customer/books', { headers: { 'Authorization': `Bearer ${getToken()}` } });
             const books = await res.json();
@@ -414,6 +358,8 @@
                 const title = b.title || 'Untitled Book';
                 const author = b.author || 'Unknown Author';
                 const url = b.heyzine_url || b.url || '';
+                const bookId = b.id;
+                const currentPage = b.current_page || 1;
                 
                 const safeTitle = String(title).replace(/'/g, "\\'");
                 const safeAuthor = String(author).replace(/'/g, "\\'");
@@ -424,45 +370,59 @@
                         <div>
                             <h3 style="color:#38bdf8; margin-bottom: 0.25rem;">${title}</h3>
                             <p style="color:#94a3b8">by ${author}</p>
+                            <p style="color:#64748b; font-size: 0.75rem; margin-top: 0.4rem;">Bookmark: Page ${currentPage}</p>
                         </div>
-                        <button class="btn-read" onclick="openReader('${safeUrl}', '${safeTitle}', '${safeAuthor}')">Read Flipbook</button>
+                        <button class="btn-read" onclick="openReader(${bookId}, '${safeUrl}', '${safeTitle}', '${safeAuthor}', ${currentPage})">Read Flipbook</button>
                     </div>
                 `;
             }).join('');
         }
 
-        // Reader Controls
-        function openReader(url, title, author) {
+        let activeBookId = null;
+
+        function openReader(bookId, url, title, author, startPage) {
+            activeBookId = bookId;
             document.body.classList.add('reader-mode');
             document.getElementById('customer-view').classList.add('hidden');
             document.getElementById('reader-view').classList.remove('hidden');
             document.getElementById('reader-book-title').textContent = title;
             document.getElementById('reader-book-author').textContent = `by ${author}`;
 
+            let finalUrl = url;
+            if (startPage && startPage > 1) {
+                finalUrl = url.split('#')[0] + `#page/${startPage}`;
+            }
+
             const iframe = document.getElementById('heyzine-iframe');
-            iframe.src = url;
+            iframe.src = finalUrl;
         }
 
+        // Listen to Heyzine page changes and sync bookmark automatically
+        window.addEventListener('message', async (event) => {
+            if (!event.origin.includes('heyzine.com')) return;
+            try {
+                const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+                const pageNum = data.page || data.pageIndex;
+                if (pageNum && activeBookId) {
+                    await fetch(`/api/customer/books/${activeBookId}/bookmark`, {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json', 
+                            'Authorization': `Bearer ${getToken()}` 
+                        },
+                        body: JSON.stringify({ page: pageNum })
+                    });
+                }
+            } catch (e) {}
+        });
+
         function closeReader() {
+            activeBookId = null;
             document.body.classList.remove('reader-mode');
             document.getElementById('reader-view').classList.add('hidden');
             document.getElementById('heyzine-iframe').src = '';
             renderApp();
         }
-
-        // Keyboard Shortcut Shielding
-        window.addEventListener('keydown', (e) => {
-            const readerOpen = !document.getElementById('reader-view').classList.contains('hidden');
-            if (readerOpen) {
-                if (
-                    e.key === 'F12' || 
-                    (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C')) ||
-                    (e.ctrlKey && e.key === 'u')
-                ) {
-                    e.preventDefault();
-                }
-            }
-        });
 
         renderApp();
     </script>

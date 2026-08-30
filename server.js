@@ -43,7 +43,6 @@ db.serialize(() => {
         password TEXT,
         role TEXT DEFAULT 'customer'
     )`, async () => {
-        // Auto-create default admin account on startup if none exists
         db.get(`SELECT * FROM users WHERE role = 'admin'`, async (err, row) => {
             if (!row) {
                 try {
@@ -69,12 +68,11 @@ db.serialize(() => {
         title TEXT,
         author TEXT,
         heyzine_url TEXT,
+        current_page INTEGER DEFAULT 1,
         FOREIGN KEY(user_id) REFERENCES users(id)
     )`, () => {
-        // Safe migration if table already existed without 'author' column
-        db.run(`ALTER TABLE books ADD COLUMN author TEXT`, (alterErr) => {
-            // Ignored if column already exists
-        });
+        db.run(`ALTER TABLE books ADD COLUMN author TEXT`, (alterErr) => {});
+        db.run(`ALTER TABLE books ADD COLUMN current_page INTEGER DEFAULT 1`, (alterErr) => {});
     });
 });
 
@@ -127,16 +125,14 @@ function handleLogin(req, res) {
     });
 }
 
-// --- ULTRA-ROBUST PASSWORD CHANGE HANDLER ---
+// --- PASSWORD CHANGE HANDLER ---
 function handlePasswordChange(req, res) {
     if (req.user.role !== 'admin') {
         return res.status(403).json({ error: 'Access forbidden. Admins only.' });
     }
 
-    console.log("INCOMING PASSWORD CHANGE REQUEST BODY:", req.body);
-
-    let identifier = req.body.userId || req.body.user_id || req.body.id || req.body.customer_id || req.body.username || req.body.customer || req.body.name || req.params.id;
-    let password = req.body.password || req.body.newPassword || req.body.new_password || req.body.pass;
+    let identifier = req.body.userId || req.body.user_id || req.body.id || req.body.customer_id || req.body.username;
+    let password = req.body.password || req.body.newPassword || req.body.new_password;
 
     if (!identifier && req.body && Object.keys(req.body).length > 0) {
         const keys = Object.keys(req.body);
@@ -154,7 +150,7 @@ function handlePasswordChange(req, res) {
     }
 
     if (!identifier || password === undefined || password === null || password === '') {
-        return res.status(400).json({ error: `User identifier and password are required. Received keys: ${Object.keys(req.body || {}).join(', ')}` });
+        return res.status(400).json({ error: 'User identifier and password are required.' });
     }
 
     bcrypt.hash(String(password), 10, (hashErr, hashedPassword) => {
@@ -168,13 +164,11 @@ function handlePasswordChange(req, res) {
 
         db.run(query, [hashedPassword, identifier], function(err) {
             if (err) {
-                console.error("Database error updating password:", err);
                 return res.status(500).json({ error: 'Database error updating password.' });
             }
             if (this.changes === 0) {
                 return res.status(404).json({ error: `User not found for identifier: ${identifier}` });
             }
-            console.log(`Admin updated password for user identifier: ${identifier}`);
             res.json({ message: 'Password updated successfully!' });
         });
     });
@@ -182,174 +176,112 @@ function handlePasswordChange(req, res) {
 
 // --- API ROUTES ---
 
-// 1. Status Check
 app.get('/api/status', (req, res) => {
     res.json({ status: '501Books server is running successfully!' });
 });
 
-// 2. Public Registration Route
-app.post('/api/register', async (req, res) => {
-    const { username, password, role } = req.body;
-    if (!username || !password) {
-        return res.status(400).json({ error: 'Username and password are required.' });
-    }
-
-    try {
-        const hashedPassword = await bcrypt.hash(password, 10);
-        const userRole = role || 'customer';
-        const query = `INSERT INTO users (username, password, role) VALUES (?, ?, ?)`;
-        
-        db.run(query, [username, hashedPassword, userRole], function(err) {
-            if (err) {
-                return res.status(400).json({ error: 'Username already exists or database error.' });
-            }
-            console.log(`New user registered: ${username} (Role: ${userRole})`);
-            res.json({ message: 'User registered successfully!', userId: this.lastID });
-        });
-    } catch (error) {
-        res.status(500).json({ error: 'Server error during registration.' });
-    }
-});
-
-// 3. Login Routes
 app.post('/api/login', handleLogin);
 app.post('/login', handleLogin);
 
-// 4. Get Current User Profile
 app.get('/api/me', verifyToken, (req, res) => {
     res.json(req.user);
 });
 
-// 5. Get Books for Logged-in User
 app.get('/api/books', verifyToken, (req, res) => {
-    const userId = req.user.id;
-    const query = `SELECT * FROM books WHERE user_id = ?`;
-    
-    db.all(query, [userId], (err, rows) => {
-        if (err) {
-            return res.status(500).json({ error: 'Failed to retrieve books.' });
-        }
+    db.all(`SELECT * FROM books WHERE user_id = ?`, [req.user.id], (err, rows) => {
+        if (err) return res.status(500).json({ error: 'Failed to retrieve books.' });
         res.json(rows);
     });
 });
 
 app.get('/api/customer/books', verifyToken, (req, res) => {
-    const userId = req.user.id;
-    const query = `SELECT * FROM books WHERE user_id = ?`;
-    
-    db.all(query, [userId], (err, rows) => {
-        if (err) {
-            return res.status(500).json({ error: 'Failed to retrieve books.' });
-        }
+    db.all(`SELECT * FROM books WHERE user_id = ?`, [req.user.id], (err, rows) => {
+        if (err) return res.status(500).json({ error: 'Failed to retrieve books.' });
         res.json(rows);
     });
 });
 
-// 6. Admin Route: Get All Users
-app.get('/api/admin/users', verifyToken, (req, res) => {
-    if (req.user.role !== 'admin') {
-        return res.status(403).json({ error: 'Access forbidden. Admins only.' });
+// Save Book Bookmark / Current Page
+app.post('/api/customer/books/:id/bookmark', verifyToken, (req, res) => {
+    if (req.user.role !== 'customer') {
+        return res.status(403).json({ error: 'Access forbidden. Customers only.' });
+    }
+    const bookId = req.params.id;
+    const { page } = req.body;
+    if (!page) {
+        return res.status(400).json({ error: 'Page number is required.' });
     }
 
-    const query = `SELECT id, username, role FROM users`;
-    db.all(query, [], (err, rows) => {
-        if (err) {
-            return res.status(500).json({ error: 'Failed to retrieve users.' });
+    db.run(`UPDATE books SET current_page = ? WHERE id = ? AND user_id = ?`, [page, bookId, req.user.id], function(err) {
+        if (err || this.changes === 0) {
+            return res.status(404).json({ error: 'Book not found or database error.' });
         }
+        res.json({ message: 'Bookmark saved successfully!' });
+    });
+});
+
+app.get('/api/admin/users', verifyToken, (req, res) => {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admins only.' });
+    db.all(`SELECT id, username, role FROM users`, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: 'Failed to retrieve users.' });
         res.json(rows);
     });
 });
 
 app.get('/api/admin/customers', verifyToken, (req, res) => {
-    if (req.user.role !== 'admin') {
-        return res.status(403).json({ error: 'Access forbidden. Admins only.' });
-    }
-
-    const query = `SELECT id, username, role FROM users`;
-    db.all(query, [], (err, rows) => {
-        if (err) {
-            return res.status(500).json({ error: 'Failed to retrieve customers.' });
-        }
+    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admins only.' });
+    db.all(`SELECT id, username, role FROM users`, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: 'Failed to retrieve customers.' });
         res.json(rows);
     });
 });
 
-// 7. Admin Route: Create a New Customer Account
 app.post('/api/admin/users', verifyToken, async (req, res) => {
-    if (req.user.role !== 'admin') {
-        return res.status(403).json({ error: 'Access forbidden. Admins only.' });
-    }
-
+    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admins only.' });
     const { username, password } = req.body;
-    if (!username || !password) {
-        return res.status(400).json({ error: 'Username and password are required.' });
-    }
+    if (!username || !password) return res.status(400).json({ error: 'Username and password required.' });
 
     try {
         const hashedPassword = await bcrypt.hash(password, 10);
-        const query = `INSERT INTO users (username, password, role) VALUES (?, ?, 'customer')`;
-        
-        db.run(query, [username, hashedPassword], function(err) {
-            if (err) {
-                return res.status(400).json({ error: 'Username already exists or database error.' });
-            }
-            res.json({ message: 'Customer account created successfully!', userId: this.lastID });
+        db.run(`INSERT INTO users (username, password, role) VALUES (?, ?, 'customer')`, [username, hashedPassword], function(err) {
+            if (err) return res.status(400).json({ error: 'Username already exists.' });
+            res.json({ message: 'Customer created successfully!', userId: this.lastID });
         });
     } catch (error) {
-        res.status(500).json({ error: 'Server error during customer creation.' });
+        res.status(500).json({ error: 'Server error.' });
     }
 });
 
-// 8. Admin Route: Delete a User / Customer Account
 app.delete('/api/admin/users/:id', verifyToken, (req, res) => {
-    if (req.user.role !== 'admin') {
-        return res.status(403).json({ error: 'Access forbidden. Admins only.' });
-    }
-
+    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admins only.' });
     const userId = req.params.id;
     db.run(`DELETE FROM books WHERE user_id = ?`, [userId], () => {
         db.run(`DELETE FROM users WHERE id = ?`, [userId], function(err) {
-            if (err || this.changes === 0) {
-                return res.status(404).json({ error: 'User not found or database error.' });
-            }
-            console.log(`Admin deleted user ID: ${userId}`);
-            res.json({ message: 'User account deleted successfully!' });
+            if (err || this.changes === 0) return res.status(404).json({ error: 'User not found.' });
+            res.json({ message: 'User deleted successfully!' });
         });
     });
 });
 
 app.delete('/api/admin/customers/:id', verifyToken, (req, res) => {
-    if (req.user.role !== 'admin') {
-        return res.status(403).json({ error: 'Access forbidden. Admins only.' });
-    }
-
+    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admins only.' });
     const userId = req.params.id;
     db.run(`DELETE FROM books WHERE user_id = ?`, [userId], () => {
         db.run(`DELETE FROM users WHERE id = ?`, [userId], function(err) {
-            if (err || this.changes === 0) {
-                return res.status(404).json({ error: 'Customer not found.' });
-            }
+            if (err || this.changes === 0) return res.status(404).json({ error: 'Customer not found.' });
             res.json({ message: 'Customer deleted successfully!' });
         });
     });
 });
 
-// 9. Admin Route: Change/Update User Password
 app.put('/api/admin/change-customer-password', verifyToken, handlePasswordChange);
 app.post('/api/admin/change-customer-password', verifyToken, handlePasswordChange);
-
 app.put('/api/admin/users/:id/password', verifyToken, handlePasswordChange);
-app.put('/api/admin/customers/:id/password', verifyToken, handlePasswordChange);
 
-// 10. Admin Route: Assign a Book / Heyzine Link to a User (Ultra-Flexible + Author Support)
 app.post('/api/admin/books', verifyToken, (req, res) => {
-    if (req.user.role !== 'admin') {
-        return res.status(403).json({ error: 'Access forbidden. Admins only.' });
-    }
+    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admins only.' });
 
-    console.log("INCOMING BOOK ASSIGNMENT BODY:", req.body);
-
-    const identifier = req.body.user_id || req.body.userId || req.body.id || req.body.customer_id || req.body.username || req.body.customer;
+    const identifier = req.body.user_id || req.body.userId || req.body.id || req.body.customer_id || req.body.username;
     const title = req.body.title || req.body.bookTitle;
     const author = req.body.author || req.body.bookAuthor || '';
     const heyzine_url = req.body.heyzine_url || req.body.heyzineUrl || req.body.url || req.body.link;
@@ -358,41 +290,23 @@ app.post('/api/admin/books', verifyToken, (req, res) => {
         return res.status(400).json({ error: 'User ID, title, and Heyzine URL are required.' });
     }
 
-    const userQuery = isNaN(identifier) 
-        ? `SELECT id FROM users WHERE username = ?` 
-        : `SELECT id FROM users WHERE id = ?`;
+    const userQuery = isNaN(identifier) ? `SELECT id FROM users WHERE username = ?` : `SELECT id FROM users WHERE id = ?`;
 
     db.get(userQuery, [identifier], (err, userRow) => {
-        if (err || !userRow) {
-            return res.status(404).json({ error: 'Selected customer account not found.' });
-        }
+        if (err || !userRow) return res.status(404).json({ error: 'Customer not found.' });
 
-        const userId = userRow.id;
-        const insertQuery = `INSERT INTO books (user_id, title, author, heyzine_url) VALUES (?, ?, ?, ?)`;
-        
-        db.run(insertQuery, [userId, title, author, heyzine_url], function(dbErr) {
-            if (dbErr) {
-                console.error("Database error adding book:", dbErr);
-                return res.status(500).json({ error: 'Failed to add book to database.' });
-            }
-            console.log(`Admin assigned book "${title}" by "${author}" to user ID: ${userId}`);
+        db.run(`INSERT INTO books (user_id, title, author, heyzine_url) VALUES (?, ?, ?, ?)`, [userRow.id, title, author, heyzine_url], function(dbErr) {
+            if (dbErr) return res.status(500).json({ error: 'Failed to add book.' });
             res.json({ message: 'Book added successfully!', bookId: this.lastID });
         });
     });
 });
 
-// --- SAFETY NET: Force JSON for missing API routes ---
-app.use('/api/*', (req, res) => {
-    res.status(404).json({ error: `API endpoint not found: ${req.baseUrl}` });
-});
-
-// --- FRONTEND CATCH-ALL ---
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// --- SERVER LISTENING ---
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(`501Books server is live and listening on port ${PORT}`);
+    console.log(`501Books server live on port ${PORT}`);
 });
