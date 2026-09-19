@@ -18,7 +18,7 @@
         button.btn-logout:hover { background: #dc2626; }
 
         /* Main Container */
-        main { flex: 1; display: flex; flex-direction: column; width: 100%; min-height: 0; }
+        main { flex: 1; display: flex; flex-direction: column; width: 100%; min-height: 0; position: relative; }
         .card { background: rgba(30, 41, 59, 0.65); backdrop-filter: blur(16px); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2); }
         h2 { margin-bottom: 1.2rem; font-size: 1.3rem; }
         .form-group { margin-bottom: 1.25rem; }
@@ -27,6 +27,14 @@
         input:focus, select:focus { outline: none; border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15); }
         button.btn-primary { background: #6366f1; color: white; border: none; padding: 0.9rem 1.5rem; border-radius: 10px; cursor: pointer; font-weight: 600; width: 100%; font-size: 0.95rem; }
         button.btn-primary:hover { background: #4f46e5; }
+        .btn-whatsapp { background: #25d366; color: white; border: none; padding: 0.9rem 1.5rem; border-radius: 10px; cursor: pointer; font-weight: 600; width: 100%; font-size: 0.95rem; margin-top: 0.75rem; text-align: center; display: inline-block; text-decoration: none; transition: background 0.2s; }
+        .btn-whatsapp:hover { background: #22bf5b; }
+        
+        /* Floating WhatsApp Action Button with Text/Icon */
+        .fab-whatsapp { position: fixed; bottom: 2rem; right: 2rem; background: #25d366; color: white; padding: 0.75rem 1.25rem; border-radius: 50px; display: flex; align-items: center; gap: 0.5rem; box-shadow: 0 6px 20px rgba(37, 211, 102, 0.4); cursor: pointer; z-index: 1000; text-decoration: none; font-weight: 600; font-size: 0.9rem; transition: transform 0.2s, background 0.2s; }
+        .fab-whatsapp:hover { background: #22bf5b; transform: scale(1.05); }
+        .fab-whatsapp svg { width: 22px; height: 22px; fill: white; flex-shrink: 0; }
+
         .hidden { display: none !important; }
 
         /* SPLIT-SCREEN LOGIN */
@@ -43,15 +51,24 @@
         .login-card-title { font-size: 1.8rem; font-weight: 800; color: #0f172a; margin-bottom: 0.4rem; }
         .login-card-subtitle { color: #64748b; font-size: 0.9rem; margin-bottom: 2rem; }
 
-        /* DASHBOARDS */
+        /* DASHBOARDS & TABS */
         .dashboard-main { max-width: 1100px; margin: 0 auto; width: 100%; padding: 2rem; }
+        .library-tabs { display: flex; gap: 0.75rem; margin-bottom: 1.5rem; border-bottom: 1px solid rgba(255, 255, 255, 0.08); padding-bottom: 1rem; }
+        .tab-btn { background: rgba(30, 41, 59, 0.6); color: #94a3b8; border: 1px solid rgba(255, 255, 255, 0.08); padding: 0.6rem 1.25rem; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: all 0.2s; }
+        .tab-btn:hover { color: #f8fafc; background: rgba(51, 65, 85, 0.8); }
+        .tab-btn.active { background: #6366f1; color: white; border-color: #6366f1; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3); }
+
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1.25rem; }
         .user-list { display: flex; flex-direction: column; gap: 0.75rem; }
         .user-item { display: flex; justify-content: space-between; align-items: center; background: rgba(15, 23, 42, 0.6); padding: 0.85rem 1.2rem; border-radius: 8px; }
         .btn-delete { background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid #ef4444; padding: 0.4rem 0.8rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem; }
-        .book-card { background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 10px; padding: 1.25rem; display: flex; flex-direction: column; justify-content: space-between; min-height: 160px; }
-        .btn-read { background: #10b981; color: white; border: none; padding: 0.65rem 1rem; border-radius: 6px; cursor: pointer; font-weight: 600; width: 100%; margin-top: 1rem; }
+        .book-card { background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 10px; padding: 1.25rem; display: flex; flex-direction: column; justify-content: space-between; min-height: 210px; }
+        .btn-read { background: #10b981; color: white; border: none; padding: 0.65rem 1rem; border-radius: 6px; cursor: pointer; font-weight: 600; width: 100%; font-size: 0.85rem; }
         .btn-read:hover { background: #059669; }
+        .btn-complete { background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.8rem; width: 100%; transition: background 0.2s; }
+        .btn-complete:hover { background: rgba(56, 189, 248, 0.3); }
+        .btn-delete-book { background: rgba(239, 68, 68, 0.15); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.4); padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.8rem; width: 100%; transition: background 0.2s; }
+        .btn-delete-book:hover { background: rgba(239, 68, 68, 0.3); }
 
         /* EMBEDDED HEYZINE READER - FULL SCREEN NO SCROLL */
         .reader-card { padding: 0.75rem 1rem !important; flex: 1; display: flex; flex-direction: column; border: none !important; background: transparent !important; box-shadow: none !important; margin: 0 !important; height: calc(100vh - 70px); }
@@ -72,6 +89,7 @@
             .login-form-panel { padding: 2rem 1rem; }
             .dashboard-main { padding: 1rem; }
             .reader-card { height: calc(100vh - 65px); padding: 0.5rem !important; }
+            .fab-whatsapp { bottom: 1.25rem; right: 1.25rem; padding: 0.6rem 1rem; font-size: 0.85rem; }
         }
     </style>
 </head>
@@ -86,6 +104,7 @@
     </header>
 
     <main>
+        <!-- LOGIN VIEW -->
         <div id="login-view" class="split-login-container">
             <div class="login-hero">
                 <div class="hero-top-logo">📖 501Books</div>
@@ -114,12 +133,15 @@
                             <input type="password" id="login-password" placeholder="••••••••" required>
                         </div>
                         <button type="submit" class="btn-primary" style="margin-top: 0.5rem;">Log in</button>
+                        <button type="button" class="btn-whatsapp" onclick="openWhatsAppSignUp()">Sign Up (WhatsApp)</button>
                     </form>
                 </div>
             </div>
         </div>
 
+        <!-- DASHBOARDS -->
         <div id="dashboard-container" class="dashboard-main hidden">
+            <!-- ADMIN VIEW -->
             <div id="admin-view" class="hidden">
                 <div class="card">
                     <h2>Customer Accounts</h2>
@@ -168,13 +190,20 @@
                 </div>
             </div>
 
+            <!-- CUSTOMER VIEW -->
             <div id="customer-view" class="hidden">
+                <div class="library-tabs">
+                    <button id="tab-active-books" class="tab-btn active" onclick="switchLibraryTab('active')">📖 My Library</button>
+                    <button id="tab-completed-books" class="tab-btn" onclick="switchLibraryTab('completed')">✅ Completed Books</button>
+                </div>
+
                 <div class="card">
-                    <h2>My Book Library</h2>
+                    <h2 id="library-section-title">Active Books</h2>
                     <div id="customer-books-grid" class="grid"></div>
                 </div>
             </div>
 
+            <!-- EMBEDDED READER VIEW -->
             <div id="reader-view" class="hidden card reader-card">
                 <div class="reader-header">
                     <div>
@@ -192,6 +221,14 @@
                 </div>
             </div>
         </div>
+
+        <!-- FLOATING WHATSAPP BUTTON FOR CUSTOMERS -->
+        <a id="fab-get-book" href="javascript:void(0)" onclick="openWhatsAppGetBook()" class="fab-whatsapp hidden" title="Get Books">
+            <svg viewBox="0 0 24 24">
+                <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/>
+            </svg>
+            Get Books
+        </a>
     </main>
 
     <script>
@@ -199,6 +236,18 @@
         function showAlert(elId, msg, type = 'error') {
             document.getElementById(elId).innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
             setTimeout(() => document.getElementById(elId).innerHTML = '', 4000);
+        }
+
+        function openWhatsAppSignUp() {
+            const phone = '5016165366';
+            const message = encodeURIComponent("Hey I would like to create an account on the 501Books App");
+            window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
+        }
+
+        function openWhatsAppGetBook() {
+            const phone = '5016165366';
+            const message = encodeURIComponent("Hey I would like to get a new book added to my 501Books App library");
+            window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
         }
 
         document.getElementById('login-form').addEventListener('submit', async (e) => {
@@ -220,16 +269,28 @@
 
         function logout() { localStorage.removeItem('token'); renderApp(); }
 
+        let currentLibraryTab = 'active';
+
+        function switchLibraryTab(tab) {
+            currentLibraryTab = tab;
+            document.getElementById('tab-active-books').classList.toggle('active', tab === 'active');
+            document.getElementById('tab-completed-books').classList.toggle('active', tab === 'completed');
+            document.getElementById('library-section-title').textContent = tab === 'active' ? 'Active Books' : 'Completed Books';
+            loadCustomerBooks();
+        }
+
         async function renderApp() {
             const token = getToken();
             const loginView = document.getElementById('login-view');
             const dashboardContainer = document.getElementById('dashboard-container');
             const appHeader = document.getElementById('app-header');
+            const fabGetBook = document.getElementById('fab-get-book');
 
             if (!token) {
                 loginView.classList.remove('hidden');
                 dashboardContainer.classList.add('hidden');
                 appHeader.classList.add('hidden');
+                fabGetBook.classList.add('hidden');
                 document.getElementById('admin-view').classList.add('hidden');
                 document.getElementById('customer-view').classList.add('hidden');
                 document.getElementById('reader-view').classList.add('hidden');
@@ -251,11 +312,13 @@
                 document.getElementById('admin-view').classList.remove('hidden');
                 document.getElementById('customer-view').classList.add('hidden');
                 document.getElementById('reader-view').classList.add('hidden');
+                fabGetBook.classList.add('hidden');
                 loadAdminData();
             } else {
                 document.getElementById('customer-view').classList.remove('hidden');
                 document.getElementById('admin-view').classList.add('hidden');
                 document.getElementById('reader-view').classList.add('hidden');
+                fabGetBook.classList.remove('hidden');
                 loadCustomerBooks();
             }
         }
@@ -348,16 +411,27 @@
             const grid = document.getElementById('customer-books-grid');
 
             if (!books || !books.length) {
-                grid.innerHTML = '<p style="color:#64748b;">No assigned books in your library.</p>';
+                grid.innerHTML = `<p style="color:#64748b;">No ${currentLibraryTab === 'active' ? 'active' : 'completed'} books in your library.</p>`;
                 return;
             }
 
-            grid.innerHTML = books.map(b => {
+            const filteredBooks = books.filter(b => {
+                const isCompleted = b.is_completed === 1 || b.is_completed === true;
+                return currentLibraryTab === 'completed' ? isCompleted : !isCompleted;
+            });
+
+            if (!filteredBooks.length) {
+                grid.innerHTML = `<p style="color:#64748b;">No ${currentLibraryTab === 'active' ? 'active' : 'completed'} books found.</p>`;
+                return;
+            }
+
+            grid.innerHTML = filteredBooks.map(b => {
                 const title = b.title || 'Untitled Book';
                 const author = b.author || 'Unknown Author';
                 const url = b.heyzine_url || b.url || '';
                 const bookId = b.id;
                 const currentPage = b.current_page || 1;
+                const isCompleted = b.is_completed === 1 || b.is_completed === true;
                 
                 const safeTitle = String(title).replace(/'/g, "\\'");
                 const safeAuthor = String(author).replace(/'/g, "\\'");
@@ -370,10 +444,47 @@
                             <p style="color:#94a3b8">by ${author}</p>
                             <p style="color:#64748b; font-size: 0.75rem; margin-top: 0.4rem;">Bookmark: Page ${currentPage}</p>
                         </div>
-                        <button class="btn-read" onclick="openReader(${bookId}, '${safeUrl}', '${safeTitle}', '${safeAuthor}', ${currentPage})">Read Flipbook</button>
+                        <div style="display: flex; flex-direction: column; gap: 0.4rem; margin-top: 1rem;">
+                            <button class="btn-read" onclick="openReader(${bookId}, '${safeUrl}', '${safeTitle}', '${safeAuthor}', ${currentPage})">Read Flipbook</button>
+                            <button class="btn-complete" onclick="toggleComplete(${bookId}, ${isCompleted})">${isCompleted ? '↩ Move to Active' : '✅ Mark Complete'}</button>
+                            <button class="btn-delete-book" onclick="deleteBook(${bookId})">Delete Book</button>
+                        </div>
                     </div>
                 `;
             }).join('');
+        }
+
+        async function toggleComplete(bookId, currentStatus) {
+            const newStatus = !currentStatus;
+            const res = await fetch(`/api/customer/books/${bookId}/complete`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json', 
+                    'Authorization': `Bearer ${getToken()}` 
+                },
+                body: JSON.stringify({ isCompleted: newStatus })
+            });
+
+            if (res.ok) {
+                loadCustomerBooks();
+            } else {
+                alert('Failed to update book status.');
+            }
+        }
+
+        async function deleteBook(bookId) {
+            if (!confirm('Are you sure you want to remove this book from your library?')) return;
+
+            const res = await fetch(`/api/customer/books/${bookId}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${getToken()}` }
+            });
+
+            if (res.ok) {
+                loadCustomerBooks();
+            } else {
+                alert('Failed to delete book.');
+            }
         }
 
         let activeBookId = null;
@@ -383,6 +494,7 @@
             document.body.classList.add('reader-mode');
             document.getElementById('customer-view').classList.add('hidden');
             document.getElementById('reader-view').classList.remove('hidden');
+            document.getElementById('fab-get-book').classList.add('hidden');
             document.getElementById('reader-book-title').textContent = title;
             document.getElementById('reader-book-author').textContent = `by ${author}`;
 
