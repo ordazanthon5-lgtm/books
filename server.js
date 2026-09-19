@@ -35,31 +35,30 @@ const db = new sqlite3.Database(dbPath, (err) => {
     }
 });
 
-// --- INITIALIZE DATABASE TABLES & SEED DEFAULT ADMIN ---
+// --- INITIALIZE DATABASE TABLES & GUARANTEE ADMIN ACCOUNT ---
 db.serialize(() => {
     db.run(`CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE,
         password TEXT,
         role TEXT DEFAULT 'customer'
-    )`, () => {
-        db.get(`SELECT * FROM users WHERE role = 'admin'`, async (err, row) => {
-            if (!row) {
-                try {
-                    const hashedPassword = await bcrypt.hash('admin123', 10);
-                    db.run(`INSERT OR IGNORE INTO users (username, password, role) VALUES (?, ?, ?)`, 
-                        ['admin', hashedPassword, 'admin'], 
-                        (insertErr) => {
-                            if (!insertErr) {
-                                console.log('Default admin account auto-created: username: admin / password: admin123');
-                            }
-                        }
-                    );
-                } catch (hashErr) {
-                    console.error('Error hashing default admin password:', hashErr);
+    )`, async () => {
+        try {
+            const hashedPassword = await bcrypt.hash('admin123', 10);
+            db.run(`INSERT INTO users (username, password, role) VALUES ('admin', ?, 'admin')
+                    ON CONFLICT(username) DO UPDATE SET password = ?, role = 'admin'`, 
+                [hashedPassword, hashedPassword], 
+                (err) => {
+                    if (!err) {
+                        console.log('Admin account verified/updated: admin / admin123');
+                    } else {
+                        console.error('Error ensuring admin user:', err);
+                    }
                 }
-            }
-        });
+            );
+        } catch (hashErr) {
+            console.error('Error hashing default admin password:', hashErr);
+        }
     });
 
     db.run(`CREATE TABLE IF NOT EXISTS books (
@@ -203,7 +202,6 @@ app.get('/api/customer/books', verifyToken, (req, res) => {
     });
 });
 
-// Delete a book from customer library
 app.delete('/api/customer/books/:id', verifyToken, (req, res) => {
     if (req.user.role !== 'customer') {
         return res.status(403).json({ error: 'Access forbidden. Customers only.' });
@@ -217,7 +215,6 @@ app.delete('/api/customer/books/:id', verifyToken, (req, res) => {
     });
 });
 
-// Save Book Bookmark / Current Page
 app.post('/api/customer/books/:id/bookmark', verifyToken, (req, res) => {
     if (req.user.role !== 'customer') {
         return res.status(403).json({ error: 'Access forbidden. Customers only.' });
@@ -236,7 +233,6 @@ app.post('/api/customer/books/:id/bookmark', verifyToken, (req, res) => {
     });
 });
 
-// Toggle Book Completed Status
 app.post('/api/customer/books/:id/complete', verifyToken, (req, res) => {
     if (req.user.role !== 'customer') {
         return res.status(403).json({ error: 'Access forbidden. Customers only.' });
