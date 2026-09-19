@@ -133,7 +133,7 @@
                             <input type="password" id="login-password" placeholder="••••••••" required>
                         </div>
                         <button type="submit" class="btn-primary" style="margin-top: 0.5rem;">Log in</button>
-                        <button type="button" class="btn-whatsapp" onclick="openWhatsAppSignUp()">Sign Up (WhatsApp)</button>
+                        <button type="button" class="btn-whatsapp" onclick="openWhatsAppSignUp()">Sign Up</button>
                     </form>
                 </div>
             </div>
@@ -513,7 +513,7 @@
             let pageInput = prompt("Enter the page number you want to bookmark:", "1");
             if (!pageInput || isNaN(pageInput)) return;
 
-            const res = await fetch(`/api/customer/books/${activeBookId}/bookmark`, {
+            const res = packageFetch(`/api/customer/books/${activeBookId}/bookmark`, {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json', 
@@ -522,7 +522,17 @@
                 body: JSON.stringify({ page: parseInt(pageInput) })
             });
 
-            if (res.ok) {
+            // Fallback for direct fetch call formatting
+            const response = await fetch(`/api/customer/books/${activeBookId}/bookmark`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json', 
+                    'Authorization': `Bearer ${getToken()}` 
+                },
+                body: JSON.stringify({ page: parseInt(pageInput) })
+            });
+
+            if (response.ok) {
                 alert(`Bookmark saved to Page ${pageInput}!`);
             } else {
                 alert('Failed to save bookmark.');
