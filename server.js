@@ -42,7 +42,7 @@ db.serialize(() => {
         username TEXT UNIQUE,
         password TEXT,
         role TEXT DEFAULT 'customer'
-    )`, async () => {
+    )`, () => {
         db.get(`SELECT * FROM users WHERE role = 'admin'`, async (err, row) => {
             if (!row) {
                 try {
@@ -69,10 +69,12 @@ db.serialize(() => {
         author TEXT,
         heyzine_url TEXT,
         current_page INTEGER DEFAULT 1,
+        is_completed BOOLEAN DEFAULT 0,
         FOREIGN KEY(user_id) REFERENCES users(id)
     )`, () => {
         db.run(`ALTER TABLE books ADD COLUMN author TEXT`, (alterErr) => {});
         db.run(`ALTER TABLE books ADD COLUMN current_page INTEGER DEFAULT 1`, (alterErr) => {});
+        db.run(`ALTER TABLE books ADD COLUMN is_completed BOOLEAN DEFAULT 0`, (alterErr) => {});
     });
 });
 
@@ -201,6 +203,20 @@ app.get('/api/customer/books', verifyToken, (req, res) => {
     });
 });
 
+// Delete a book from customer library
+app.delete('/api/customer/books/:id', verifyToken, (req, res) => {
+    if (req.user.role !== 'customer') {
+        return res.status(403).json({ error: 'Access forbidden. Customers only.' });
+    }
+    const bookId = req.params.id;
+    db.run(`DELETE FROM books WHERE id = ? AND user_id = ?`, [bookId, req.user.id], function(err) {
+        if (err || this.changes === 0) {
+            return res.status(404).json({ error: 'Book not found or database error.' });
+        }
+        res.json({ message: 'Book deleted successfully!' });
+    });
+});
+
 // Save Book Bookmark / Current Page
 app.post('/api/customer/books/:id/bookmark', verifyToken, (req, res) => {
     if (req.user.role !== 'customer') {
@@ -217,6 +233,23 @@ app.post('/api/customer/books/:id/bookmark', verifyToken, (req, res) => {
             return res.status(404).json({ error: 'Book not found or database error.' });
         }
         res.json({ message: 'Bookmark saved successfully!' });
+    });
+});
+
+// Toggle Book Completed Status
+app.post('/api/customer/books/:id/complete', verifyToken, (req, res) => {
+    if (req.user.role !== 'customer') {
+        return res.status(403).json({ error: 'Access forbidden. Customers only.' });
+    }
+    const bookId = req.params.id;
+    const { isCompleted } = req.body;
+
+    const query = `UPDATE books SET is_completed = ? WHERE id = ? AND user_id = ?`;
+    db.run(query, [isCompleted ? 1 : 0, bookId, req.user.id], function(err) {
+        if (err || this.changes === 0) {
+            return res.status(404).json({ error: 'Book not found or database error.' });
+        }
+        res.json({ message: 'Book status updated successfully!' });
     });
 });
 
