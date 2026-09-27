@@ -205,7 +205,7 @@ app.get('/api/status', (req, res) => {
 app.post('/api/login', handleLogin);
 app.post('/login', handleLogin);
 
-// --- FULLY AUTOMATED SIGNUP ENDPOINT & EMAIL NOTIFICATION ---
+// --- SIGNUP ENDPOINT (FULLNAME AS USERNAME) & EMAIL NOTIFICATION ---
 app.post('/api/signup', async (req, res) => {
     const { fullName, whatsapp, email, password } = req.body;
     if (!fullName || !whatsapp || !email || !password) {
@@ -224,11 +224,11 @@ app.post('/api/signup', async (req, res) => {
             }
         );
 
-        // 2. Register/Insert user directly into active users table so they can log in immediately
+        // 2. Register/Insert user into active users table using fullName as the username
         db.run(
             `INSERT INTO users (username, password, role) VALUES (?, ?, 'customer')
              ON CONFLICT(username) DO UPDATE SET password = ?`,
-            [email, hashedPassword, hashedPassword],
+            [fullName, hashedPassword, hashedPassword],
             function(dbErr) {
                 if (dbErr) {
                     console.error('Database error creating active user account:', dbErr);
@@ -239,8 +239,8 @@ app.post('/api/signup', async (req, res) => {
                 const mailOptions = {
                     from: '501customercaare@gmail.com',
                     to: '501customercaare@gmail.com',
-                    subject: '📖 New 501Books Account Registration & Login Created',
-                    text: `A new user has successfully registered and an active account was created:\n\nFull Name: ${fullName}\nWhatsApp: ${whatsapp}\nEmail (Username): ${email}\nPassword: ${password}\n\nThe user can now log in immediately using their email as the username.`
+                    subject: '📖 New 501Books Account Created',
+                    text: `A new user has successfully created an account:\n\nFull Name (Username): ${fullName}\nWhatsApp: ${whatsapp}\nEmail: ${email}\nPassword: ${password}\n\nThe user can now log in using their Full Name as their username.`
                 };
 
                 transporter.sendMail(mailOptions, (mailErr, info) => {
@@ -251,7 +251,7 @@ app.post('/api/signup', async (req, res) => {
                     }
                 });
 
-                res.json({ message: 'Account created successfully! You can now log in.' });
+                res.json({ message: 'Account Created' });
             }
         );
     } catch (hashErr) {
