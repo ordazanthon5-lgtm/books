@@ -284,26 +284,36 @@
             document.getElementById('signup-popup-form').reset();
         }
 
-        document.getElementById('signup-popup-form').addEventListener('submit', (e) => {
+        document.getElementById('signup-popup-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const fullName = document.getElementById('su-fullname').value;
             const whatsapp = document.getElementById('su-whatsapp').value;
             const email = document.getElementById('su-email').value;
             const password = document.getElementById('su-password').value;
 
-            const recipient = "ordazanthon5@gmail.com";
-            const subject = encodeURIComponent("New Sign Up Request - 501Books");
-            const body = encodeURIComponent(`Full Name: ${fullName}\nWhatsApp Phone Number: ${whatsapp}\nE-Mail: ${email}\nPassword: ${password}`);
+            try {
+                const res = await fetch('/api/signup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ fullName, whatsapp, email, password })
+                });
 
-            window.location.href = `mailto:${recipient}?subject=${subject}&body=${body}`;
+                const data = await res.json();
 
-            document.getElementById('signup-message-container').innerHTML = `
-                <div style="text-align: center; padding: 2rem 1rem;">
-                    <p style="font-size: 1.05rem; font-weight: 600; color: #0f172a; line-height: 1.5;">
-                        Please wait for a confirmation message.
-                    </p>
-                </div>
-            `;
+                if (res.ok) {
+                    document.getElementById('signup-message-container').innerHTML = `
+                        <div style="text-align: center; padding: 2rem 1rem;">
+                            <p style="font-size: 1.05rem; font-weight: 600; color: #166534; line-height: 1.5;">
+                                🎉 Registration request submitted successfully! Please wait for confirmation.
+                            </p>
+                        </div>
+                    `;
+                } else {
+                    alert(data.error || 'Failed to submit registration.');
+                }
+            } catch (err) {
+                alert('An error occurred. Please try again.');
+            }
         });
 
         function openWhatsAppGetBook() {
