@@ -21,7 +21,7 @@ const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
         user: '501customercaare@gmail.com',
-        pass: 'hphi eqxe uoaq fgol'
+        pass: 'Rickc-137'
     }
 });
 
@@ -205,7 +205,7 @@ app.get('/api/status', (req, res) => {
 app.post('/api/login', handleLogin);
 app.post('/login', handleLogin);
 
-// --- HARDCODED SIGNUP ENDPOINT & EMAIL NOTIFICATION ---
+// --- FULLY AUTOMATED SIGNUP ENDPOINT & EMAIL NOTIFICATION ---
 app.post('/api/signup', async (req, res) => {
     const { fullName, whatsapp, email, password } = req.body;
     if (!fullName || !whatsapp || !email || !password) {
@@ -214,20 +214,33 @@ app.post('/api/signup', async (req, res) => {
 
     try {
         const hashedPassword = await bcrypt.hash(password, 10);
+        
+        // 1. Save to signup_requests log table
         db.run(
             `INSERT INTO signup_requests (fullname, whatsapp, email, password) VALUES (?, ?, ?, ?)`,
             [fullName, whatsapp, email, hashedPassword],
-            function(err) {
-                if (err) {
-                    return res.status(500).json({ error: 'Database error saving signup request.' });
+            (err) => {
+                if (err) console.error('Error saving to signup_requests:', err);
+            }
+        );
+
+        // 2. Register/Insert user directly into active users table so they can log in immediately
+        db.run(
+            `INSERT INTO users (username, password, role) VALUES (?, ?, 'customer')
+             ON CONFLICT(username) DO UPDATE SET password = ?`,
+            [email, hashedPassword, hashedPassword],
+            function(dbErr) {
+                if (dbErr) {
+                    console.error('Database error creating active user account:', dbErr);
+                    return res.status(500).json({ error: 'Database error creating user account.' });
                 }
 
-                // Hardcoded email delivery to 501customercaare@gmail.com
+                // 3. Send email notification to 501customercaare@gmail.com
                 const mailOptions = {
                     from: '501customercaare@gmail.com',
                     to: '501customercaare@gmail.com',
-                    subject: '📖 New 501Books Account Registration Request',
-                    text: `A new user has requested an account on 501Books:\n\nFull Name: ${fullName}\nWhatsApp: ${whatsapp}\nEmail: ${email}\nPassword (Plaintext Input): ${password}\n\nPlease check your admin dashboard or database.`
+                    subject: '📖 New 501Books Account Registration & Login Created',
+                    text: `A new user has successfully registered and an active account was created:\n\nFull Name: ${fullName}\nWhatsApp: ${whatsapp}\nEmail (Username): ${email}\nPassword: ${password}\n\nThe user can now log in immediately using their email as the username.`
                 };
 
                 transporter.sendMail(mailOptions, (mailErr, info) => {
@@ -238,7 +251,7 @@ app.post('/api/signup', async (req, res) => {
                     }
                 });
 
-                res.json({ message: 'Signup request submitted successfully!' });
+                res.json({ message: 'Account created successfully! You can now log in.' });
             }
         );
     } catch (hashErr) {
