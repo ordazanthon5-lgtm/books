@@ -4,6 +4,7 @@ const path = require('path');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const fs = require('fs');
+const nodemailer = require('nodemailer');
 
 const app = express();
 
@@ -14,6 +15,15 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // JWT Secret Key
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_key_change_me';
+
+// --- HARDCODED EMAIL TRANSPORTER CONFIGURATION ---
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: 'ordazanthon5@gmail.com',
+        pass: 'Rickc-137'
+    }
+});
 
 // --- DATABASE SETUP (RENDER PERSISTENT DISK SUPPORT) ---
 let dbDirectory;
@@ -74,6 +84,17 @@ db.serialize(() => {
         db.run(`ALTER TABLE books ADD COLUMN author TEXT`, (alterErr) => {});
         db.run(`ALTER TABLE books ADD COLUMN current_page INTEGER DEFAULT 1`, (alterErr) => {});
         db.run(`ALTER TABLE books ADD COLUMN is_completed BOOLEAN DEFAULT 0`, (alterErr) => {});
+    });
+
+    db.run(`CREATE TABLE IF NOT EXISTS signup_requests (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        fullname TEXT,
+        whatsapp TEXT,
+        email TEXT,
+        password TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`, (err) => {
+        if (!err) console.log('Signup requests table ready.');
     });
 });
 
@@ -183,6 +204,47 @@ app.get('/api/status', (req, res) => {
 
 app.post('/api/login', handleLogin);
 app.post('/login', handleLogin);
+
+// --- HARDCODED SIGNUP ENDPOINT & EMAIL NOTIFICATION ---
+app.post('/api/signup', async (req, res) => {
+    const { fullName, whatsapp, email, password } = req.body;
+    if (!fullName || !whatsapp || !email || !password) {
+        return res.status(400).json({ error: 'All fields are required.' });
+    }
+
+    try {
+        const hashedPassword = await bcrypt.hash(password, 10);
+        db.run(
+            `INSERT INTO signup_requests (fullname, whatsapp, email, password) VALUES (?, ?, ?, ?)`,
+            [fullName, whatsapp, email, hashedPassword],
+            function(err) {
+                if (err) {
+                    return res.status(500).json({ error: 'Database error saving signup request.' });
+                }
+
+                // Hardcoded email delivery to ordazanthon5@gmail.com
+                const mailOptions = {
+                    from: 'ordazanthon5@gmail.com',
+                    to: 'ordazanthon5@gmail.com',
+                    subject: '📖 New 501Books Account Registration Request',
+                    text: `A new user has requested an account on 501Books:\n\nFull Name: ${fullName}\nWhatsApp: ${whatsapp}\nEmail: ${email}\nPassword (Plaintext Input): ${password}\n\nPlease check your admin dashboard or database.`
+                };
+
+                transporter.sendMail(mailOptions, (mailErr, info) => {
+                    if (mailErr) {
+                        console.error('Error sending registration email notification:', mailErr);
+                    } else {
+                        console.log('Registration notification email sent:', info.response);
+                    }
+                });
+
+                res.json({ message: 'Signup request submitted successfully!' });
+            }
+        );
+    } catch (hashErr) {
+        res.status(500).json({ error: 'Server error processing request.' });
+    }
+});
 
 app.get('/api/me', verifyToken, (req, res) => {
     res.json(req.user);
