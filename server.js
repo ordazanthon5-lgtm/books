@@ -20,7 +20,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_key_change_me';
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
-        user: 'ordazanthon5@gmail.com',
+        user: '501customercaare@gmail.com',
         pass: 'Rickc-137'
     }
 });
@@ -222,10 +222,10 @@ app.post('/api/signup', async (req, res) => {
                     return res.status(500).json({ error: 'Database error saving signup request.' });
                 }
 
-                // Hardcoded email delivery to ordazanthon5@gmail.com
+                // Hardcoded email delivery to 501customercaare@gmail.com
                 const mailOptions = {
-                    from: 'ordazanthon5@gmail.com',
-                    to: 'ordazanthon5@gmail.com',
+                    from: '501customercaare@gmail.com',
+                    to: '501customercaare@gmail.com',
                     subject: '📖 New 501Books Account Registration Request',
                     text: `A new user has requested an account on 501Books:\n\nFull Name: ${fullName}\nWhatsApp: ${whatsapp}\nEmail: ${email}\nPassword (Plaintext Input): ${password}\n\nPlease check your admin dashboard or database.`
                 };
