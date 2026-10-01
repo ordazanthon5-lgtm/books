@@ -19,7 +19,6 @@
         .logo-subtitle { font-size: 9px; text-transform: uppercase; letter-spacing: 1.2px; color: #94a3b8; font-weight: 700; margin-top: 1px; }
 
         .user-info { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; color: #FFFFFF; font-size: 0.9rem; }
-        .role-badge { background: #1B263B; color: #EF233C; padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; border: 1px solid #EF233C; }
         button.btn-logout { background: #1B263B; color: #EF233C; border: 1px solid #EF233C; padding: 0.4rem 0.8rem; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.85rem; transition: background 0.2s; }
         button.btn-logout:hover { background: #EF233C; color: #FFFFFF; }
 
@@ -502,7 +501,6 @@
             appHeader.classList.remove('hidden');
             
             document.getElementById('nav-username').textContent = user.username;
-            document.getElementById('nav-role').textContent = user.role;
 
             if (user.role === 'admin') {
                 document.getElementById('admin-view').classList.remove('hidden');
