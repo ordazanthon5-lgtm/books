@@ -95,7 +95,7 @@
         .btn-delete-book:hover { background: #EF233C; color: #FFFFFF; }
 
         /* EMBEDDED HEYZINE READER - FULL SCREEN NO SCROLL */
-        .reader-card { padding: 0.75rem 1rem !important; flex: 1; display: flex; flex-direction: column; border: none !important; background: transparent !important; box-shadow: none !important; margin: 0 !important; height: calc(100vh - 70px); width: 100%; max-width: 100% !important; }
+        .reader-card { padding: 0.75rem 1rem !important; flex: 1; display: flex; flex-direction: column; border: none !important; background: transparent !important; box-shadow: none !important; margin: 0 !important; height: calc(100vh - 70px); width: 100%; max-width: 100% !important; transition: all 0.3s ease; }
         .reader-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; gap: 0.5rem; flex-shrink: 0; background: #0D1B2A; padding: 0.75rem 1rem; border-radius: 12px; border: 1px solid #1B263B; }
         .iframe-wrapper { flex: 1; width: 100%; border-radius: 12px; overflow: hidden; background: #000000; min-height: 0; }
         .iframe-wrapper iframe { width: 100%; height: 100%; border: none; display: block; }
@@ -285,7 +285,7 @@
                     </div>
                     <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
                         <button class="btn-nav" onclick="saveCurrentBookmark()">🔖 Save Page</button>
-                        <button class="btn-nav" onclick="toggleAppFullscreen()" style="background: #EF233C; border-color: #EF233C;">⛶ Fullscreen</button>
+                        <button id="btn-maximize" class="btn-nav" onclick="toggleMaximizeReader()" style="background: #EF233C; border-color: #EF233C;">⛶ Maximize</button>
                         <button class="btn-nav" onclick="closeReader()">← Library</button>
                     </div>
                 </div>
@@ -687,15 +687,28 @@
         }
 
         let activeBookId = null;
+        let isMaximized = false;
 
         function openReader(bookId, url, title, author, startPage) {
             activeBookId = bookId;
+            isMaximized = false;
             document.body.classList.add('reader-mode');
             document.getElementById('customer-view').classList.add('hidden');
             document.getElementById('reader-view').classList.remove('hidden');
             document.getElementById('fab-get-book').classList.add('hidden');
             document.getElementById('reader-book-title').textContent = title;
             document.getElementById('reader-book-author').textContent = `by ${author}`;
+            document.getElementById('btn-maximize').textContent = '⛶ Maximize';
+
+            // Reset reader view container styles if previously maximized
+            const readerCard = document.getElementById('reader-view');
+            readerCard.style.position = '';
+            readerCard.style.top = '';
+            readerCard.style.left = '';
+            readerCard.style.width = '';
+            readerCard.style.height = '';
+            readerCard.style.zIndex = '';
+            readerCard.style.borderRadius = '';
 
             let finalUrl = url;
             if (startPage && startPage > 1) {
@@ -707,15 +720,29 @@
             iframe.src = finalUrl;
         }
 
-        function toggleAppFullscreen() {
-            if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen().catch(err => {
-                    console.log(`Error attempting to enable fullscreen: ${err.message}`);
-                });
+        function toggleMaximizeReader() {
+            isMaximized = !isMaximized;
+            const readerCard = document.getElementById('reader-view');
+            const maxBtn = document.getElementById('btn-maximize');
+
+            if (isMaximized) {
+                readerCard.style.position = 'fixed';
+                readerCard.style.top = '0';
+                readerCard.style.left = '0';
+                readerCard.style.width = '100vw';
+                readerCard.style.height = '100vh';
+                readerCard.style.zIndex = '99999';
+                readerCard.style.borderRadius = '0';
+                maxBtn.textContent = '🗗 Minimize';
             } else {
-                if (document.exitFullscreen) {
-                    document.exitFullscreen();
-                }
+                readerCard.style.position = '';
+                readerCard.style.top = '';
+                readerCard.style.left = '';
+                readerCard.style.width = '';
+                readerCard.style.height = '';
+                readerCard.style.zIndex = '';
+                readerCard.style.borderRadius = '';
+                maxBtn.textContent = '⛶ Maximize';
             }
         }
 
@@ -741,13 +768,18 @@
         }
 
         function closeReader() {
-            // Exit fullscreen if active when leaving the reader
-            if (document.fullscreenElement) {
-                document.exitFullscreen().catch(() => {});
-            }
             activeBookId = null;
+            isMaximized = false;
             document.body.classList.remove('reader-mode');
-            document.getElementById('reader-view').classList.add('hidden');
+            const readerCard = document.getElementById('reader-view');
+            readerCard.classList.add('hidden');
+            readerCard.style.position = '';
+            readerCard.style.top = '';
+            readerCard.style.left = '';
+            readerCard.style.width = '';
+            readerCard.style.height = '';
+            readerCard.style.zIndex = '';
+            readerCard.style.borderRadius = '';
             document.getElementById('heyzine-iframe').src = '';
             renderApp();
         }
