@@ -283,8 +283,9 @@
                         <h2 id="reader-book-title" style="margin-bottom:0.1rem; font-size:1.05rem;"></h2>
                         <span id="reader-book-author" style="color:#94a3b8; font-size:0.8rem;"></span>
                     </div>
-                    <div style="display: flex; gap: 0.5rem;">
+                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
                         <button class="btn-nav" onclick="saveCurrentBookmark()">🔖 Save Page</button>
+                        <a id="reader-external-link" href="#" target="_blank" class="btn-nav" style="text-decoration: none; background: #EF233C; border-color: #EF233C;">🖨️ Fullscreen View</a>
                         <button class="btn-nav" onclick="closeReader()">← Library</button>
                     </div>
                 </div>
@@ -701,6 +702,9 @@
                 let cleanBase = url.split('#')[0];
                 finalUrl = `${cleanBase}#page/${startPage}`;
             }
+
+            // Set the external full-screen button href for mobile safety
+            document.getElementById('reader-external-link').href = finalUrl;
 
             const iframe = document.getElementById('heyzine-iframe');
             iframe.src = finalUrl;
