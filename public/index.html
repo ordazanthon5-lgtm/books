@@ -406,35 +406,61 @@
             
             const topBooks = [
                 {
-                    title: "The Silent Echo",
-                    author: "Elena Vance",
-                    cover: "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=500&q=80",
-                    description: "A gripping mystery about a small town hiding decades of forgotten secrets."
+                    title: "Atomic Habits",
+                    author: "James Clear",
+                    cover: "https://cdn2.penguin.com.au/covers/original/9781473565425.jpg",
+                    description: "Step-by-step guide on how to build good habits, break bad ones, and master the tiny behaviors that lead to remarkable results."
                 },
                 {
-                    title: "Beyond the Horizon",
-                    author: "Marcus Thorne",
-                    cover: "https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=500&q=80",
-                    description: "An epic sci-fi journey across uncharted galaxies and alien civilizations."
+                    title: "The 48 Laws of Power",
+                    author: "Robert Greene",
+                    cover: "https://m.media-amazon.com/images/I/611X8GI7hpL.jpg",
+                    description: "A bold, controversial guide that distills 3,000 years of history into 48 strategic rules on how to gain, maintain, and protect power in social, professional, and political life."
                 },
                 {
-                    title: "Culinary Belize",
-                    author: "Chef Darren",
-                    cover: "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=500&q=80",
-                    description: "Discover traditional flavors, secret spices, and modern twists on classic dishes."
+                    title: "Shoe Dog",
+                    author: "Phil Knight",
+                    cover: "https://everyday-reading.com/wp-content/uploads/2018/01/shoe-dog.jpeg",
+                    description: "The inspiring true story of how a young man built a global empire from a simple idea."
                 },
                 {
-                    title: "Financial Freedom Blueprint",
-                    author: "Sarah Jenkins",
-                    cover: "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=500&q=80",
-                    description: "Practical steps for personal bookkeeping, smart saving, and sustainable investing."
+                    title: "The Song of Achilles",
+                    author: "Madeline Miller",
+                    cover: "https://cdn.kobo.com/book-images/f162530c-1e6b-4d7c-abfb-374cb8b983d5/1200/1200/False/the-song-of-achilles.jpg",
+                    description: "A retelling of the Iliad from the perspective of Patroclus, exploring themes of love, friendship, and destiny."
                 },
                 {
-                    title: "The Last Kingdom's Dawn",
-                    author: "Aiden Cross",
-                    cover: "https://images.unsplash.com/photo-1532012197267-da84d127e765?auto=format&fit=crop&w=500&q=80",
-                    description: "A thrilling fantasy adventure of kingdoms at war and unexpected alliances."
-                }
+                    title: "The Psychology of Money",
+                    author: "Morgan Housel",
+                    cover: "https://arrowpointwealth.com/wp-content/uploads/2021/06/psychology-of-money.png",
+                    description: "Timeless lessons on wealth, greed, and happiness, emphasizing the importance of behavior over knowledge in financial success."
+                },
+                {
+                    title: "Dead Beat",
+                    author: "Leigh Bardugo",
+                    cover: "https://m.media-amazon.com/images/S/compressed.photo.goodreads.com/books/1772037931i/247785403.jpg",
+                    description: "A thrilling fantasy novel that follows a young woman navigating a world of magic, crime, and intrigue, as she seeks to uncover the truth behind her mysterious past."
+                },  {
+                    title: "The Calamity Club",
+                    author: "Kathryn Stockett",
+                    cover: "https://m.media-amazon.com/images/I/81zVu7TK1NL._SL1500_.jpg",
+                    description: "A gripping tale of friendship, betrayal, and resilience set against the backdrop of a small Southern town, where secrets and scandals threaten to unravel the lives of its residents."
+                },  {
+                    title: "Exit Club",
+                    author: "Emily St. John Mandel",
+                    cover: "https://m.media-amazon.com/images/S/compressed.photo.goodreads.com/books/1767644639i/241683548.jpg",
+                    description: "A post-apocalyptic novel that explores the lives of a group of survivors navigating a world devastated by a mysterious pandemic, as they grapple with loss, identity, and the search for meaning in a changed society."
+                },  {
+                    title: "The Knave and the Moon",
+                    author: "Rachel Gillig",
+                    cover: "https://www.thecreativemuggle.com/wp-content/uploads/2026/01/The-Knave-and-the-Moon-by-Rachel-Gillig-683x1024.jpg",
+                    description: "A whimsical and enchanting story that follows a young protagonist on a magical journey through a fantastical world, where they encounter mythical creatures, uncover hidden truths, and discover the power of courage and friendship."
+                },  {
+                    title: "Hollow Bones",
+                    author: "Jodi Picoult",
+                    cover: "https://m.media-amazon.com/images/I/81JuGnOFPdL._SL1500_.jpg",
+                    description: "A gripping psychological thriller that delves into the complexities of family dynamics, secrets, and the consequences of past actions, as a family grapples with a shocking revelation that threatens to unravel their lives."
+                },
             ];
 
             grid.innerHTML = topBooks.map(b => `
@@ -445,7 +471,6 @@
                         <p style="color:#94a3b8; font-size: 0.85rem; margin-bottom: 0.5rem;">by ${b.author}</p>
                         <p class="top-book-desc">${b.description}</p>
                     </div>
-                    <button class="btn-read" onclick="alert('This is a featured preview for ${b.title}!')">Read Preview</button>
                 </div>
             `).join('');
         }
