@@ -5,10 +5,12 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const fs = require('fs');
 const nodemailer = require('nodemailer');
+const cors = require('cors');
 
 const app = express();
 
 // --- MIDDLEWARE ---
+app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -77,11 +79,13 @@ db.serialize(() => {
         title TEXT,
         author TEXT,
         heyzine_url TEXT,
+        cover_url TEXT,
         current_page INTEGER DEFAULT 1,
         is_completed BOOLEAN DEFAULT 0,
         FOREIGN KEY(user_id) REFERENCES users(id)
     )`, () => {
         db.run(`ALTER TABLE books ADD COLUMN author TEXT`, (alterErr) => {});
+        db.run(`ALTER TABLE books ADD COLUMN cover_url TEXT`, (alterErr) => {});
         db.run(`ALTER TABLE books ADD COLUMN current_page INTEGER DEFAULT 1`, (alterErr) => {});
         db.run(`ALTER TABLE books ADD COLUMN is_completed BOOLEAN DEFAULT 0`, (alterErr) => {});
     });
@@ -340,6 +344,14 @@ app.get('/api/admin/customers', verifyToken, (req, res) => {
     });
 });
 
+app.get('/api/admin/signup-requests', verifyToken, (req, res) => {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admins only.' });
+    db.all(`SELECT id, fullname, whatsapp, email, created_at FROM signup_requests ORDER BY created_at DESC`, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: 'Failed to retrieve signup requests.' });
+        res.json(rows);
+    });
+});
+
 app.post('/api/admin/users', verifyToken, async (req, res) => {
     if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admins only.' });
     const { username, password } = req.body;
@@ -389,6 +401,7 @@ app.post('/api/admin/books', verifyToken, (req, res) => {
     const title = req.body.title || req.body.bookTitle;
     const author = req.body.author || req.body.bookAuthor || '';
     const heyzine_url = req.body.heyzine_url || req.body.heyzineUrl || req.body.url || req.body.link;
+    const cover_url = req.body.cover_url || req.body.coverUrl || req.body.cover || '';
 
     if (!identifier || !title || !heyzine_url) {
         return res.status(400).json({ error: 'User ID, title, and Heyzine URL are required.' });
@@ -399,7 +412,7 @@ app.post('/api/admin/books', verifyToken, (req, res) => {
     db.get(userQuery, [identifier], (err, userRow) => {
         if (err || !userRow) return res.status(404).json({ error: 'Customer not found.' });
 
-        db.run(`INSERT INTO books (user_id, title, author, heyzine_url) VALUES (?, ?, ?, ?)`, [userRow.id, title, author, heyzine_url], function(dbErr) {
+        db.run(`INSERT INTO books (user_id, title, author, heyzine_url, cover_url) VALUES (?, ?, ?, ?, ?)`, [userRow.id, title, author, heyzine_url, cover_url], function(dbErr) {
             if (dbErr) return res.status(500).json({ error: 'Failed to add book.' });
             res.json({ message: 'Book added successfully!', bookId: this.lastID });
         });
