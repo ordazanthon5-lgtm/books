@@ -95,7 +95,7 @@
         .btn-delete-book:hover { background: #EF233C; color: #FFFFFF; }
 
         /* EMBEDDED HEYZINE READER - FULL SCREEN NO SCROLL */
-        .reader-card { padding: 0.75rem 1rem !important; flex: 1; display: flex; flex-direction: column; border: none !important; background: transparent !important; box-shadow: none !important; margin: 0 !important; height: calc(100vh - 70px); }
+        .reader-card { padding: 0.75rem 1rem !important; flex: 1; display: flex; flex-direction: column; border: none !important; background: transparent !important; box-shadow: none !important; margin: 0 !important; height: calc(100vh - 70px); width: 100%; max-width: 100% !important; }
         .reader-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; gap: 0.5rem; flex-shrink: 0; background: #0D1B2A; padding: 0.75rem 1rem; border-radius: 12px; border: 1px solid #1B263B; }
         .iframe-wrapper { flex: 1; width: 100%; border-radius: 12px; overflow: hidden; background: #000000; min-height: 0; }
         .iframe-wrapper iframe { width: 100%; height: 100%; border: none; display: block; }
@@ -285,7 +285,7 @@
                     </div>
                     <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
                         <button class="btn-nav" onclick="saveCurrentBookmark()">🔖 Save Page</button>
-                        <a id="reader-external-link" href="#" target="_blank" class="btn-nav" style="text-decoration: none; background: #EF233C; border-color: #EF233C;">🖨️ Fullscreen View</a>
+                        <button class="btn-nav" onclick="toggleAppFullscreen()" style="background: #EF233C; border-color: #EF233C;">⛶ Fullscreen</button>
                         <button class="btn-nav" onclick="closeReader()">← Library</button>
                     </div>
                 </div>
@@ -703,11 +703,20 @@
                 finalUrl = `${cleanBase}#page/${startPage}`;
             }
 
-            // Set the external full-screen button href for mobile safety
-            document.getElementById('reader-external-link').href = finalUrl;
-
             const iframe = document.getElementById('heyzine-iframe');
             iframe.src = finalUrl;
+        }
+
+        function toggleAppFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.log(`Error attempting to enable fullscreen: ${err.message}`);
+                });
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
         }
 
         async function saveCurrentBookmark() {
@@ -732,6 +741,10 @@
         }
 
         function closeReader() {
+            // Exit fullscreen if active when leaving the reader
+            if (document.fullscreenElement) {
+                document.exitFullscreen().catch(() => {});
+            }
             activeBookId = null;
             document.body.classList.remove('reader-mode');
             document.getElementById('reader-view').classList.add('hidden');
