@@ -99,7 +99,7 @@
 
         /* EPUB.JS IMMERSIVE FULL-SCREEN READER */
         .reader-card { padding: 0 !important; flex: 1; display: flex; flex-direction: column; border: none !important; background: #000000 !important; box-shadow: none !important; margin: 0 !important; height: 100vh; width: 100vw; position: fixed; top: 0; left: 0; z-index: 99999; }
-        .iframe-wrapper { flex: 1; width: 100%; height: 100%; background: #000000; display: flex; position: relative; cursor: pointer; }
+        .iframe-wrapper { flex: 1; width: 100%; height: 100%; background: #000000; display: flex; position: relative; }
         #epub-viewer { width: 100%; height: 100%; }
         
         /* Floating Overlay Controls with Smooth Fade & Toggle Support */
@@ -312,7 +312,7 @@
 
             <!-- EPUB READER VIEW (IMMERSIVE OVERLAY) -->
             <div id="reader-view" class="hidden reader-card">
-                <div class="iframe-wrapper" id="reader-container-area" oncontextmenu="return false;">
+                <div class="iframe-wrapper" id="reader-container-area">
                     <div id="epub-viewer"></div>
 
                     <!-- Floating Navigation Overlay (Tappable / Auto-Hide Container) -->
@@ -762,6 +762,11 @@
 
             // Handle bookmark restoration & automatic page saving on move silently in background
             currentRendition.display(startPage).then(() => {
+                // Hook directly into epub.js internal iframe clicks to toggle overlay cleanly
+                currentRendition.on("click", (e) => {
+                    document.getElementById('reader-nav-overlay').classList.toggle('hidden');
+                });
+
                 currentRendition.on("relocated", (location) => {
                     const progressCfi = location.start.cfi;
                     if (activeBookId && progressCfi) {
@@ -783,14 +788,6 @@
                 currentRendition.display();
             });
         }
-
-        // Tap toggle logic for reader controls
-        document.getElementById('reader-container-area').addEventListener('click', (e) => {
-            // Prevent toggling if user clicked directly on one of the navigation buttons
-            if (e.target.closest('.btn-float') || e.target.closest('.btn-float-arrow')) return;
-            
-            document.getElementById('reader-nav-overlay').classList.toggle('hidden');
-        });
 
         function prevPage() {
             if (currentRendition) {
