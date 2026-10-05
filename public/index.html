@@ -99,13 +99,37 @@
 
         /* EPUB.JS IMMERSIVE FULL-SCREEN READER */
         .reader-card { padding: 0 !important; flex: 1; display: flex; flex-direction: column; border: none !important; background: #000000 !important; box-shadow: none !important; margin: 0 !important; height: 100vh; width: 100vw; position: fixed; top: 0; left: 0; z-index: 99999; }
-        .iframe-wrapper { flex: 1; width: 100%; height: 100%; background: #000000; display: flex; position: relative; }
+        .iframe-wrapper { flex: 1; width: 100%; height: 100%; background: #000000; display: flex; position: relative; cursor: pointer; }
         #epub-viewer { width: 100%; height: 100%; }
         
-        /* Floating Overlay Controls on the Book */
-        .floating-nav-top-left { position: absolute; top: 1.25rem; left: 1.25rem; z-index: 100000; }
-        .floating-nav-left { position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); z-index: 100000; }
-        .floating-nav-right { position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); z-index: 100000; }
+        /* Floating Overlay Controls with Smooth Fade & Toggle Support */
+        .reader-nav-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 100000;
+            pointer-events: none; /* Let clicks pass through empty overlay space to the reader */
+            opacity: 1;
+            visibility: visible;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+
+        .reader-nav-overlay.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        /* Ensure individual buttons inside the overlay are interactive when visible */
+        .reader-nav-overlay * {
+            pointer-events: auto;
+        }
+
+        .floating-nav-top-left { position: absolute; top: 1.25rem; left: 1.25rem; }
+        .floating-nav-left { position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); }
+        .floating-nav-right { position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); }
 
         .btn-float { background: rgba(13, 27, 42, 0.85); color: #FFFFFF; border: 1px solid rgba(39, 55, 77, 0.8); padding: 0.75rem 1.1rem; border-radius: 50px; cursor: pointer; font-weight: 600; font-size: 0.9rem; backdrop-filter: blur(5px); box-shadow: 0 4px 15px rgba(0,0,0,0.5); transition: all 0.2s; }
         .btn-float:hover { background: #EF233C; border-color: #EF233C; transform: scale(1.05); }
@@ -288,20 +312,23 @@
 
             <!-- EPUB READER VIEW (IMMERSIVE OVERLAY) -->
             <div id="reader-view" class="hidden reader-card">
-                <div class="floating-nav-top-left">
-                    <button class="btn-float" onclick="closeReader()">← Library</button>
-                </div>
-
-                <div class="floating-nav-left">
-                    <button class="btn-float-arrow" onclick="prevPage()" title="Previous Page">❮</button>
-                </div>
-
-                <div class="floating-nav-right">
-                    <button class="btn-float-arrow" onclick="nextPage()" title="Next Page">❯</button>
-                </div>
-                
-                <div class="iframe-wrapper" oncontextmenu="return false;">
+                <div class="iframe-wrapper" id="reader-container-area" oncontextmenu="return false;">
                     <div id="epub-viewer"></div>
+
+                    <!-- Floating Navigation Overlay (Tappable / Auto-Hide Container) -->
+                    <div class="reader-nav-overlay" id="reader-nav-overlay">
+                        <div class="floating-nav-top-left">
+                            <button class="btn-float" onclick="closeReader()">← Library</button>
+                        </div>
+
+                        <div class="floating-nav-left">
+                            <button class="btn-float-arrow" onclick="prevPage()" title="Previous Page">❮</button>
+                        </div>
+
+                        <div class="floating-nav-right">
+                            <button class="btn-float-arrow" onclick="nextPage()" title="Next Page">❯</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -714,6 +741,9 @@
             document.getElementById('customer-view').classList.add('hidden');
             document.getElementById('reader-view').classList.remove('hidden');
             document.getElementById('fab-get-book').classList.add('hidden');
+            
+            // Ensure controls start visible when opening a book
+            document.getElementById('reader-nav-overlay').classList.remove('hidden');
 
             // Clear previous viewer content & destroy any active epub instance cleanly
             if (currentBook) {
@@ -753,6 +783,14 @@
                 currentRendition.display();
             });
         }
+
+        // Tap toggle logic for reader controls
+        document.getElementById('reader-container-area').addEventListener('click', (e) => {
+            // Prevent toggling if user clicked directly on one of the navigation buttons
+            if (e.target.closest('.btn-float') || e.target.closest('.btn-float-arrow')) return;
+            
+            document.getElementById('reader-nav-overlay').classList.toggle('hidden');
+        });
 
         function prevPage() {
             if (currentRendition) {
