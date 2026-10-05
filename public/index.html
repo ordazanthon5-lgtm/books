@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>501Books - Your Belizean Digital Library</title>
+    <!-- JSZip and Epub.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/epubjs/dist/epub.min.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', -apple-system, sans-serif; }
         body { background: #000000; color: #FFFFFF; min-height: 100vh; display: flex; flex-direction: column; overflow-x: hidden; }
@@ -94,14 +97,21 @@
         .btn-delete-book { background: #1B263B; color: #EF233C; border: 1px solid #EF233C; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.8rem; width: 100%; }
         .btn-delete-book:hover { background: #EF233C; color: #FFFFFF; }
 
-        /* EMBEDDED HEYZINE READER - FULL SCREEN NO SCROLL */
-        .reader-card { padding: 0.75rem 1rem !important; flex: 1; display: flex; flex-direction: column; border: none !important; background: transparent !important; box-shadow: none !important; margin: 0 !important; height: calc(100vh - 70px); width: 100%; max-width: 100% !important; transition: all 0.3s ease; }
-        .reader-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; gap: 0.5rem; flex-shrink: 0; background: #0D1B2A; padding: 0.75rem 1rem; border-radius: 12px; border: 1px solid #1B263B; }
-        .iframe-wrapper { flex: 1; width: 100%; border-radius: 12px; overflow: hidden; background: #000000; min-height: 0; }
-        .iframe-wrapper iframe { width: 100%; height: 100%; border: none; display: block; }
+        /* EPUB.JS IMMERSIVE FULL-SCREEN READER */
+        .reader-card { padding: 0 !important; flex: 1; display: flex; flex-direction: column; border: none !important; background: #000000 !important; box-shadow: none !important; margin: 0 !important; height: 100vh; width: 100vw; position: fixed; top: 0; left: 0; z-index: 99999; }
+        .iframe-wrapper { flex: 1; width: 100%; height: 100%; background: #000000; display: flex; position: relative; }
+        #epub-viewer { width: 100%; height: 100%; }
         
-        .btn-nav { background: #1B263B; color: #FFFFFF; border: 1px solid #27374D; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.85rem; }
-        .btn-nav:hover { background: #EF233C; border-color: #EF233C; }
+        /* Floating Overlay Controls on the Book */
+        .floating-nav-top-left { position: absolute; top: 1.25rem; left: 1.25rem; z-index: 100000; }
+        .floating-nav-left { position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); z-index: 100000; }
+        .floating-nav-right { position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); z-index: 100000; }
+
+        .btn-float { background: rgba(13, 27, 42, 0.85); color: #FFFFFF; border: 1px solid rgba(39, 55, 77, 0.8); padding: 0.75rem 1.1rem; border-radius: 50px; cursor: pointer; font-weight: 600; font-size: 0.9rem; backdrop-filter: blur(5px); box-shadow: 0 4px 15px rgba(0,0,0,0.5); transition: all 0.2s; }
+        .btn-float:hover { background: #EF233C; border-color: #EF233C; transform: scale(1.05); }
+        
+        .btn-float-arrow { background: rgba(13, 27, 42, 0.85); color: #FFFFFF; border: 1px solid rgba(39, 55, 77, 0.8); width: 45px; height: 45px; border-radius: 50%; cursor: pointer; font-weight: bold; font-size: 1.1rem; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px); box-shadow: 0 4px 15px rgba(0,0,0,0.5); transition: all 0.2s; }
+        .btn-float-arrow:hover { background: #EF233C; border-color: #EF233C; transform: scale(1.1); }
 
         .alert { padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.9rem; font-weight: 500; }
         .alert-error { background: #1B263B; color: #EF233C; border: 1px solid #EF233C; }
@@ -113,8 +123,8 @@
             .hero-title { font-size: 2.2rem; }
             .login-form-panel { padding: 2rem 1rem; }
             .dashboard-main { padding: 1rem; }
-            .reader-card { height: calc(100vh - 60px); padding: 0.5rem !important; }
-            .fab-whatsapp { bottom: 1.25rem; right: 1.25rem; padding: 0.6rem 1rem; font-size: 0.85rem; }
+            .btn-float { padding: 0.5rem 0.85rem; font-size: 0.8rem; }
+            .btn-float-arrow { width: 38px; height: 38px; font-size: 0.95rem; }
         }
     </style>
 </head>
@@ -235,15 +245,15 @@
                 </div>
 
                 <div class="card">
-                    <h2>Add Heyzine Flipbook</h2>
+                    <h2>Add EPUB Book</h2>
                     <div id="admin-book-alert"></div>
                     <form id="add-book-form">
                         <div class="form-group"><label>Select Customer</label><select id="assign-user-select" required></select></div>
                         <div class="form-group"><label>Title</label><input type="text" id="book-title" required placeholder="Book title"></div>
                         <div class="form-group"><label>Author</label><input type="text" id="book-author" required placeholder="Author name"></div>
                         <div class="form-group">
-                            <label>Heyzine Link or Embed Code</label>
-                            <input type="text" id="book-url" placeholder="https://heyzine.com/flip-book/..." required>
+                            <label>EPUB File URL</label>
+                            <input type="text" id="book-url" placeholder="https://example.com/book.epub" required>
                         </div>
                         <div class="form-group">
                             <label>Cover Page Image URL</label>
@@ -276,22 +286,22 @@
                 </div>
             </div>
 
-            <!-- EMBEDDED READER VIEW -->
-            <div id="reader-view" class="hidden card reader-card">
-                <div class="reader-header">
-                    <div>
-                        <h2 id="reader-book-title" style="margin-bottom:0.1rem; font-size:1.05rem;"></h2>
-                        <span id="reader-book-author" style="color:#94a3b8; font-size:0.8rem;"></span>
-                    </div>
-                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
-                        <button class="btn-nav" onclick="saveCurrentBookmark()">🔖 Save Page</button>
-                        <button id="btn-maximize" class="btn-nav" onclick="toggleMaximizeReader()" style="background: #EF233C; border-color: #EF233C;">⛶ Maximize</button>
-                        <button class="btn-nav" onclick="closeReader()">← Library</button>
-                    </div>
+            <!-- EPUB READER VIEW (IMMERSIVE OVERLAY) -->
+            <div id="reader-view" class="hidden reader-card">
+                <div class="floating-nav-top-left">
+                    <button class="btn-float" onclick="closeReader()">← Library</button>
+                </div>
+
+                <div class="floating-nav-left">
+                    <button class="btn-float-arrow" onclick="prevPage()" title="Previous Page">❮</button>
+                </div>
+
+                <div class="floating-nav-right">
+                    <button class="btn-float-arrow" onclick="nextPage()" title="Next Page">❯</button>
                 </div>
                 
                 <div class="iframe-wrapper" oncontextmenu="return false;">
-                    <iframe id="heyzine-iframe" allow="fullscreen; accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen="true" webkitallowfullscreen="true" mozallowfullscreen="true" scrolling="no"></iframe>
+                    <div id="epub-viewer"></div>
                 </div>
             </div>
         </div>
@@ -601,17 +611,20 @@
             } else showAlert('admin-book-alert', data.error);
         });
 
+        let loadedCustomerBooks = [];
+
         async function loadCustomerBooks() {
             const res = await fetch('/api/customer/books', { headers: { 'Authorization': `Bearer ${getToken()}` } });
             const books = await res.json();
+            loadedCustomerBooks = books || [];
             const grid = document.getElementById('customer-books-grid');
 
-            if (!books || !books.length) {
+            if (!loadedCustomerBooks.length) {
                 grid.innerHTML = `<p style="color:#94a3b8;">No ${currentLibraryTab === 'active' ? 'active' : 'completed'} books in your library.</p>`;
                 return;
             }
 
-            const filteredBooks = books.filter(b => {
+            const filteredBooks = loadedCustomerBooks.filter(b => {
                 const isCompleted = b.is_completed === 1 || b.is_completed === true;
                 return currentLibraryTab === 'completed' ? isCompleted : !isCompleted;
             });
@@ -624,16 +637,9 @@
             grid.innerHTML = filteredBooks.map(b => {
                 const title = b.title || 'Untitled Book';
                 const author = b.author || 'Unknown Author';
-                const url = b.heyzine_url || b.url || '';
                 const bookId = b.id;
-                const currentPage = b.current_page || 1;
                 const isCompleted = b.is_completed === 1 || b.is_completed === true;
-                
                 const cover = b.cover_url || b.cover || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=500&q=80';
-                
-                const safeTitle = String(title).replace(/'/g, "\\'");
-                const safeAuthor = String(author).replace(/'/g, "\\'");
-                const safeUrl = String(url).replace(/'/g, "\\'");
 
                 return `
                     <div class="book-card">
@@ -641,16 +647,27 @@
                             <img src="${cover}" alt="${title}" class="book-cover">
                             <h3 style="color:#FFFFFF; margin-bottom: 0.2rem; font-size: 1.05rem;">${title}</h3>
                             <p style="color:#94a3b8; font-size: 0.85rem; margin-bottom: 0.4rem;">by ${author}</p>
-                            <p style="color:#64748b; font-size: 0.75rem;">Bookmark: Page ${currentPage}</p>
                         </div>
                         <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;">
-                            <button class="btn-read" onclick="openReader(${bookId}, '${safeUrl}', '${safeTitle}', '${safeAuthor}', ${currentPage})">Read Flipbook</button>
+                            <button class="btn-read" onclick="openBookById(${bookId})">Read Book</button>
                             <button class="btn-complete" onclick="toggleComplete(${bookId}, ${isCompleted})">${isCompleted ? '↩ Move to Active' : '✅ Mark Complete'}</button>
                             <button class="btn-delete-book" onclick="deleteBook(${bookId})">Delete Book</button>
                         </div>
                     </div>
                 `;
             }).join('');
+        }
+
+        function openBookById(bookId) {
+            const book = loadedCustomerBooks.find(b => b.id === bookId);
+            if (!book) return;
+
+            const title = book.title || 'Untitled Book';
+            const author = book.author || 'Unknown Author';
+            const url = book.heyzine_url || book.url || '';
+            const currentPage = book.current_page || 1;
+
+            openReader(bookId, url, title, author, currentPage);
         }
 
         async function toggleComplete(bookId, currentStatus) {
@@ -687,100 +704,78 @@
         }
 
         let activeBookId = null;
-        let isMaximized = false;
+        let currentBook = null;
+        let currentRendition = null;
+        let saveTimeout = null;
 
         function openReader(bookId, url, title, author, startPage) {
             activeBookId = bookId;
-            isMaximized = false;
             document.body.classList.add('reader-mode');
             document.getElementById('customer-view').classList.add('hidden');
             document.getElementById('reader-view').classList.remove('hidden');
             document.getElementById('fab-get-book').classList.add('hidden');
-            document.getElementById('reader-book-title').textContent = title;
-            document.getElementById('reader-book-author').textContent = `by ${author}`;
-            document.getElementById('btn-maximize').textContent = '⛶ Maximize';
 
-            // Reset reader view container styles if previously maximized
-            const readerCard = document.getElementById('reader-view');
-            readerCard.style.position = '';
-            readerCard.style.top = '';
-            readerCard.style.left = '';
-            readerCard.style.width = '';
-            readerCard.style.height = '';
-            readerCard.style.zIndex = '';
-            readerCard.style.borderRadius = '';
-
-            let finalUrl = url;
-            if (startPage && startPage > 1) {
-                let cleanBase = url.split('#')[0];
-                finalUrl = `${cleanBase}#page/${startPage}`;
+            // Clear previous viewer content & destroy any active epub instance cleanly
+            if (currentBook) {
+                currentBook.destroy();
+                currentBook = null;
+                currentRendition = null;
             }
+            document.getElementById('epub-viewer').innerHTML = '';
 
-            const iframe = document.getElementById('heyzine-iframe');
-            iframe.src = finalUrl;
-        }
-
-        function toggleMaximizeReader() {
-            isMaximized = !isMaximized;
-            const readerCard = document.getElementById('reader-view');
-            const maxBtn = document.getElementById('btn-maximize');
-
-            if (isMaximized) {
-                readerCard.style.position = 'fixed';
-                readerCard.style.top = '0';
-                readerCard.style.left = '0';
-                readerCard.style.width = '100vw';
-                readerCard.style.height = '100vh';
-                readerCard.style.zIndex = '99999';
-                readerCard.style.borderRadius = '0';
-                maxBtn.textContent = '🗗 Minimize';
-            } else {
-                readerCard.style.position = '';
-                readerCard.style.top = '';
-                readerCard.style.left = '';
-                readerCard.style.width = '';
-                readerCard.style.height = '';
-                readerCard.style.zIndex = '';
-                readerCard.style.borderRadius = '';
-                maxBtn.textContent = '⛶ Maximize';
-            }
-        }
-
-        async function saveCurrentBookmark() {
-            if (!activeBookId) return;
-            let pageInput = prompt("Enter the page number you want to bookmark:", "1");
-            if (!pageInput || isNaN(pageInput)) return;
-
-            const response = await fetch(`/api/customer/books/${activeBookId}/bookmark`, {
-                method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json', 
-                    'Authorization': `Bearer ${getToken()}` 
-                },
-                body: JSON.stringify({ page: parseInt(pageInput) })
+            // Initialize epub.js book & rendition taking up full viewport
+            currentBook = ePub(url);
+            currentRendition = currentBook.renderTo("epub-viewer", {
+                width: "100%",
+                height: "100%"
             });
 
-            if (response.ok) {
-                alert(`Bookmark saved to Page ${pageInput}!`);
-            } else {
-                alert('Failed to save bookmark.');
+            // Handle bookmark restoration & automatic page saving on move silently in background
+            currentRendition.display(startPage).then(() => {
+                currentRendition.on("relocated", (location) => {
+                    const progressCfi = location.start.cfi;
+                    if (activeBookId && progressCfi) {
+                        clearTimeout(saveTimeout);
+                        saveTimeout = setTimeout(() => {
+                            fetch(`/api/customer/books/${activeBookId}/bookmark`, {
+                                method: 'POST',
+                                headers: { 
+                                    'Content-Type': 'application/json', 
+                                    'Authorization': `Bearer ${getToken()}` 
+                                },
+                                body: JSON.stringify({ page: progressCfi })
+                            }).catch(err => console.error("Auto-save page error:", err));
+                        }, 1000);
+                    }
+                });
+            }).catch(err => {
+                console.error("Error displaying book start page:", err);
+                currentRendition.display();
+            });
+        }
+
+        function prevPage() {
+            if (currentRendition) {
+                currentRendition.prev();
+            }
+        }
+
+        function nextPage() {
+            if (currentRendition) {
+                currentRendition.next();
             }
         }
 
         function closeReader() {
             activeBookId = null;
-            isMaximized = false;
+            if (currentBook) {
+                currentBook.destroy();
+                currentBook = null;
+                currentRendition = null;
+            }
             document.body.classList.remove('reader-mode');
-            const readerCard = document.getElementById('reader-view');
-            readerCard.classList.add('hidden');
-            readerCard.style.position = '';
-            readerCard.style.top = '';
-            readerCard.style.left = '';
-            readerCard.style.width = '';
-            readerCard.style.height = '';
-            readerCard.style.zIndex = '';
-            readerCard.style.borderRadius = '';
-            document.getElementById('heyzine-iframe').src = '';
+            document.getElementById('reader-view').classList.add('hidden');
+            document.getElementById('epub-viewer').innerHTML = '';
             renderApp();
         }
 
