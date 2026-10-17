@@ -836,65 +836,7 @@
             currentBook = ePub(url);
             currentRendition = currentBook.renderTo("epub-viewer", {
                 width: "100%",
-                height: "100%",
-                spread: "auto"
-            });
-
-            // Aggressive fixed-layout & mobile container stretching injection rules
-            currentRendition.themes.default({
-                "div": {
-                    "width": "100% !important",
-                    "height": "100% !important",
-                    "max-width": "100% !important",
-                    "max-height": "100% !important",
-                    "margin": "0 !important",
-                    "padding": "0 !important"
-                },
-                "section": {
-                    "width": "100% !important",
-                    "height": "100% !important",
-                    "max-width": "100% !important",
-                    "max-height": "100% !important",
-                    "margin": "0 !important",
-                    "padding": "0 !important"
-                },
-                "img": {
-                    "width": "100% !important",
-                    "height": "100% !important",
-                    "max-width": "100% !important",
-                    "max-height": "100% !important",
-                    "object-fit": "fill !important",
-                    "display": "block !important",
-                    "margin": "0 !important"
-                },
-                "svg": {
-                    "width": "100% !important",
-                    "height": "100% !important",
-                    "max-width": "100% !important",
-                    "max-height": "100% !important"
-                },
-                "image": {
-                    "width": "100% !important",
-                    "height": "100% !important",
-                    "max-width": "100% !important",
-                    "max-height": "100% !important"
-                },
-                "body": {
-                    "width": "100% !important",
-                    "height": "100% !important",
-                    "margin": "0 !important",
-                    "padding": "0 !important",
-                    "display": "block !important",
-                    "background": "#000000 !important",
-                    "overflow": "hidden !important"
-                },
-                "html": {
-                    "width": "100% !important",
-                    "height": "100% !important",
-                    "margin": "0 !important",
-                    "padding": "0 !important",
-                    "overflow": "hidden !important"
-                }
+                height: "100%"
             });
 
             // Generate book locations in the background for accurate percentage calculations
