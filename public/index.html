@@ -840,9 +840,11 @@
                 spread: "auto"
             });
 
-            // Inject CSS rules into the EPUB rendition to force images to fill the screen
+            // Enhanced mobile & fixed-layout scaling injection rules
             currentRendition.themes.default({
                 "img": {
+                    "width": "100% !important",
+                    "height": "100% !important",
                     "max-width": "100% !important",
                     "max-height": "100% !important",
                     "object-fit": "contain !important",
@@ -850,21 +852,35 @@
                     "margin": "auto !important"
                 },
                 "svg": {
+                    "width": "100% !important",
+                    "height": "100% !important",
                     "max-width": "100% !important",
                     "max-height": "100% !important",
                     "object-fit": "contain !important"
                 },
                 "image": {
+                    "width": "100% !important",
+                    "height": "100% !important",
                     "max-width": "100% !important",
                     "max-height": "100% !important"
                 },
                 "body": {
+                    "width": "100vw !important",
+                    "height": "100vh !important",
                     "margin": "0 !important",
                     "padding": "0 !important",
                     "display": "flex !important",
                     "align-items": "center !important",
                     "justify-content": "center !important",
-                    "background": "#000000 !important"
+                    "background": "#000000 !important",
+                    "overflow": "hidden !important"
+                },
+                "html": {
+                    "width": "100vw !important",
+                    "height": "100vh !important",
+                    "margin": "0 !important",
+                    "padding": "0 !important",
+                    "overflow": "hidden !important"
                 }
             });
 
