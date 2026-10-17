@@ -836,7 +836,36 @@
             currentBook = ePub(url);
             currentRendition = currentBook.renderTo("epub-viewer", {
                 width: "100%",
-                height: "100%"
+                height: "100%",
+                spread: "auto"
+            });
+
+            // Inject CSS rules into the EPUB rendition to force images to fill the screen
+            currentRendition.themes.default({
+                "img": {
+                    "max-width": "100% !important",
+                    "max-height": "100% !important",
+                    "object-fit": "contain !important",
+                    "display": "block !important",
+                    "margin": "auto !important"
+                },
+                "svg": {
+                    "max-width": "100% !important",
+                    "max-height": "100% !important",
+                    "object-fit": "contain !important"
+                },
+                "image": {
+                    "max-width": "100% !important",
+                    "max-height": "100% !important"
+                },
+                "body": {
+                    "margin": "0 !important",
+                    "padding": "0 !important",
+                    "display": "flex !important",
+                    "align-items": "center !important",
+                    "justify-content": "center !important",
+                    "background": "#000000 !important"
+                }
             });
 
             // Generate book locations in the background for accurate percentage calculations
