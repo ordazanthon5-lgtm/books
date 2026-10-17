@@ -100,6 +100,16 @@ db.serialize(() => {
     )`, (err) => {
         if (!err) console.log('Signup requests table ready.');
     });
+
+    db.run(`CREATE TABLE IF NOT EXISTS sessions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        token TEXT UNIQUE,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(user_id) REFERENCES users(id)
+    )`, (err) => {
+        if (!err) console.log('Sessions table ready.');
+    });
 });
 
 // --- AUTHENTICATION MIDDLEWARE ---
@@ -111,12 +121,26 @@ function verifyToken(req, res, next) {
         return res.status(401).json({ error: 'Access denied. No token provided.' });
     }
 
-    jwt.verify(token, JWT_SECRET, (err, user) => {
+    jwt.verify(token, JWT_SECRET, (err, decodedUser) => {
         if (err) {
             return res.status(403).json({ error: 'Invalid or expired token.' });
         }
-        req.user = user;
-        next();
+
+        // Verify session is still active (not overridden by a 3rd device login)
+        db.get(`SELECT * FROM sessions WHERE token = ?`, [token], (dbErr, sessionRow) => {
+            if (dbErr || !sessionRow) {
+                return res.status(403).json({ error: 'Session expired. Account logged in from another device (maximum 2 devices allowed).' });
+            }
+
+            db.get(`SELECT username, role FROM users WHERE id = ?`, [decodedUser.id], (userErr, dbUser) => {
+                if (userErr || !dbUser) {
+                    return res.status(403).json({ error: 'User no longer exists.' });
+                }
+
+                req.user = { id: decodedUser.id, username: dbUser.username, role: dbUser.role };
+                next();
+            });
+        });
     });
 }
 
@@ -139,12 +163,28 @@ function handleLogin(req, res) {
                 return res.status(400).json({ error: 'Invalid username or password.' });
             }
 
+            // Generate token without expiration
             const token = jwt.sign(
                 { id: user.id, username: user.username, role: user.role }, 
-                JWT_SECRET, 
-                { expiresIn: '24h' }
+                JWT_SECRET
             );
-            return res.json({ message: 'Login successful!', token, role: user.role });
+
+            // Record session and enforce 2-device limit
+            db.run(`INSERT INTO sessions (user_id, token) VALUES (?, ?)`, [user.id, token], (insertErr) => {
+                if (insertErr) {
+                    return res.status(500).json({ error: 'Database error recording session.' });
+                }
+
+                db.all(`SELECT id FROM sessions WHERE user_id = ? ORDER BY created_at DESC`, [user.id], (selErr, rows) => {
+                    if (!selErr && rows && rows.length > 2) {
+                        const oldSessionIds = rows.slice(2).map(r => r.id);
+                        const placeholders = oldSessionIds.map(() => '?').join(',');
+                        db.run(`DELETE FROM sessions WHERE id IN (${placeholders})`, oldSessionIds, () => {});
+                    }
+
+                    return res.json({ message: 'Login successful!', token, role: user.role });
+                });
+            });
         } catch (compareErr) {
             return res.status(500).json({ error: 'Server error processing password.' });
         }
@@ -219,7 +259,6 @@ app.post('/api/signup', async (req, res) => {
     try {
         const hashedPassword = await bcrypt.hash(password, 10);
         
-        // 1. Save to signup_requests log table
         db.run(
             `INSERT INTO signup_requests (fullname, whatsapp, email, password) VALUES (?, ?, ?, ?)`,
             [fullName, whatsapp, email, hashedPassword],
@@ -228,7 +267,6 @@ app.post('/api/signup', async (req, res) => {
             }
         );
 
-        // 2. Register/Insert user into active users table using fullName as the username
         db.run(
             `INSERT INTO users (username, password, role) VALUES (?, ?, 'customer')
              ON CONFLICT(username) DO UPDATE SET password = ?`,
@@ -239,7 +277,6 @@ app.post('/api/signup', async (req, res) => {
                     return res.status(500).json({ error: 'Database error creating user account.' });
                 }
 
-                // 3. Send email notification to 501customercaare@gmail.com
                 const mailOptions = {
                     from: '501customercaare@gmail.com',
                     to: '501customercaare@gmail.com',

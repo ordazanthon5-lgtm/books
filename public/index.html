@@ -139,6 +139,21 @@
         }
 
         .floating-nav-top-left { position: absolute; top: 1.25rem; left: 1.25rem; }
+        .floating-nav-bottom {
+            position: absolute;
+            bottom: 1.25rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(13, 27, 42, 0.85);
+            color: #FFFFFF;
+            border: 1px solid rgba(39, 55, 77, 0.8);
+            padding: 0.5rem 1rem;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
 
         .btn-float { background: rgba(13, 27, 42, 0.85); color: #FFFFFF; border: 1px solid rgba(39, 55, 77, 0.8); padding: 0.75rem 1.1rem; border-radius: 50px; cursor: pointer; font-weight: 600; font-size: 0.9rem; backdrop-filter: blur(5px); box-shadow: 0 4px 15px rgba(0,0,0,0.5); transition: all 0.2s; }
         .btn-float:hover { background: #EF233C; border-color: #EF233C; transform: scale(1.05); }
@@ -366,6 +381,9 @@
                     <div class="reader-nav-overlay" id="reader-nav-overlay">
                         <div class="floating-nav-top-left">
                             <button class="btn-float" onclick="closeReader()">← Library</button>
+                        </div>
+                        <div class="floating-nav-bottom" id="reader-progress-text">
+                            0%
                         </div>
                     </div>
 
@@ -812,6 +830,7 @@
                 currentRendition = null;
             }
             document.getElementById('epub-viewer').innerHTML = '';
+            document.getElementById('reader-progress-text').textContent = '0%';
 
             // Initialize epub.js book & rendition taking up full viewport
             currentBook = ePub(url);
@@ -820,10 +839,35 @@
                 height: "100%"
             });
 
+            // Generate book locations in the background for accurate percentage calculations
+            currentBook.ready.then(() => {
+                return currentBook.locations.generate(1000);
+            }).catch(() => {});
+
             // Handle bookmark restoration & automatic page saving on move silently in background
             currentRendition.display(startPage).then(() => {
                 currentRendition.on("relocated", (location) => {
                     const progressCfi = location.start.cfi;
+                    
+                    // Calculate Kindle-like percentage with fallback
+                    let percentage = 0;
+                    if (currentBook.locations && currentBook.locations.total > 0) {
+                        const pct = currentBook.locations.percentageFromCfi(progressCfi);
+                        if (!isNaN(pct)) {
+                            percentage = Math.round(pct * 100);
+                        }
+                    } else if (currentBook.spine && currentBook.spine.length > 0) {
+                        const currentSection = currentBook.spine.get(location.start.href);
+                        if (currentSection && currentSection.index !== undefined) {
+                            percentage = Math.round((currentSection.index / currentBook.spine.length) * 100);
+                        }
+                    }
+
+                    if (location.atStart) percentage = 0;
+                    if (location.atEnd) percentage = 100;
+
+                    document.getElementById('reader-progress-text').textContent = `${percentage}%`;
+
                     if (activeBookId && progressCfi) {
                         clearTimeout(saveTimeout);
                         saveTimeout = setTimeout(() => {
