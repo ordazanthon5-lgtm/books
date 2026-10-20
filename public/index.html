@@ -839,6 +839,38 @@
                 height: "100%"
             });
 
+            // SMART HOOK: Fixes single-image pages to fill the screen cleanly 
+            // while keeping regular text chapters completely untouched.
+            currentRendition.hooks.content.register((contents) => {
+                const doc = contents.document;
+                const images = doc.querySelectorAll('img');
+                const textContent = doc.body.innerText.trim();
+
+                // Check if the page is a standalone image container (1 image, little to no text)
+                if (images.length === 1 && textContent.length < 10) {
+                    doc.documentElement.style.height = '100%';
+                    doc.body.style.height = '100%';
+                    doc.body.style.margin = '0';
+                    doc.body.style.display = 'flex';
+                    doc.body.style.justifyContent = 'center';
+                    doc.body.style.alignItems = 'center';
+                    doc.body.style.backgroundColor = '#000000';
+
+                    const img = images[0];
+                    img.style.maxHeight = '100vh';
+                    img.style.maxWidth = '100vw';
+                    img.style.objectFit = 'contain';
+                } else {
+                    // Safeguard: Ensure normal text/mixed pages reflow and scale safely
+                    images.forEach((img) => {
+                        img.style.maxWidth = '100%';
+                        img.style.height = 'auto';
+                        img.style.display = 'block';
+                        img.style.margin = '10px auto';
+                    });
+                }
+            });
+
             // Generate book locations in the background for accurate percentage calculations
             currentBook.ready.then(() => {
                 return currentBook.locations.generate(1000);
