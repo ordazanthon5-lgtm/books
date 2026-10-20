@@ -55,6 +55,9 @@ db.serialize(() => {
         password TEXT,
         role TEXT DEFAULT 'customer'
     )`, async () => {
+        // Ensure unique index exists on existing persistent SQLite files
+        db.run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON users(username);`, () => {});
+
         try {
             const hashedPassword = await bcrypt.hash('admin123', 10);
             db.run(`INSERT INTO users (username, password, role) VALUES ('admin', ?, 'admin')
@@ -249,19 +252,21 @@ app.get('/api/status', (req, res) => {
 app.post('/api/login', handleLogin);
 app.post('/login', handleLogin);
 
-// --- SIGNUP ENDPOINT (FULLNAME AS USERNAME) & EMAIL NOTIFICATION ---
+// --- SIGNUP ENDPOINT (FULLNAME AS USERNAME) & EMAILS ---
 app.post('/api/signup', async (req, res) => {
     const { fullName, whatsapp, email, password } = req.body;
     if (!fullName || !whatsapp || !email || !password) {
         return res.status(400).json({ error: 'All fields are required.' });
     }
 
+    const trimmedFullName = fullName.trim();
+
     try {
         const hashedPassword = await bcrypt.hash(password, 10);
         
         db.run(
             `INSERT INTO signup_requests (fullname, whatsapp, email, password) VALUES (?, ?, ?, ?)`,
-            [fullName, whatsapp, email, hashedPassword],
+            [trimmedFullName, whatsapp, email, hashedPassword],
             (err) => {
                 if (err) console.error('Error saving to signup_requests:', err);
             }
@@ -270,25 +275,38 @@ app.post('/api/signup', async (req, res) => {
         db.run(
             `INSERT INTO users (username, password, role) VALUES (?, ?, 'customer')
              ON CONFLICT(username) DO UPDATE SET password = ?`,
-            [fullName, hashedPassword, hashedPassword],
+            [trimmedFullName, hashedPassword, hashedPassword],
             function(dbErr) {
                 if (dbErr) {
                     console.error('Database error creating active user account:', dbErr);
-                    return res.status(500).json({ error: 'Database error creating user account.' });
+                    return res.status(400).json({ error: 'An account with this name already exists or database error.' });
                 }
 
-                const mailOptions = {
+                // 1. Email notification to you (admin)
+                const adminMailOptions = {
                     from: '501customercaare@gmail.com',
                     to: '501customercaare@gmail.com',
                     subject: '📖 New 501Books Account Created',
-                    text: `A new user has successfully created an account:\n\nFull Name (Username): ${fullName}\nWhatsApp: ${whatsapp}\nEmail: ${email}\nPassword: ${password}\n\nThe user can now log in using their Full Name as their username.`
+                    text: `A new user has successfully created an account:\n\nFull Name (Username): ${trimmedFullName}\nWhatsApp: ${whatsapp}\nEmail: ${email}\nPassword: ${password}\n\nThe user can now log in using their Full Name as their username.`
                 };
 
-                transporter.sendMail(mailOptions, (mailErr, info) => {
-                    if (mailErr) {
-                        console.error('Error sending registration email notification:', mailErr);
+                transporter.sendMail(adminMailOptions, (mailErr) => {
+                    if (mailErr) console.error('Error sending admin notification email:', mailErr);
+                });
+
+                // 2. Welcome email to the customer
+                const customerMailOptions = {
+                    from: '501customercaare@gmail.com',
+                    to: email,
+                    subject: 'Welcome to 501Books!',
+                    text: `Hello ${trimmedFullName},\n\nWelcome to 501Books! My name is Anthon Ordaz, and I am the creator of this platform. Thank you so much for joining us!\n\nHere are your account credentials to log in:\n- Username (Full Name): ${trimmedFullName}\n- Password: ${password}\n\nPlease keep these credentials secure and do not share them with anyone else.\n\nIf you want to purchase more books, please feel free to contact us at 616-5366.\n\nEnjoy reading!\n\nBest regards,\nAnthon Ordaz\nCreator of 501Books`
+                };
+
+                transporter.sendMail(customerMailOptions, (customerMailErr, info) => {
+                    if (customerMailErr) {
+                        console.error('Error sending welcome email to customer:', customerMailErr);
                     } else {
-                        console.log('Registration notification email sent:', info.response);
+                        console.log('Customer welcome email sent:', info.response);
                     }
                 });
 
