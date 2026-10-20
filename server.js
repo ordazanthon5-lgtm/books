@@ -149,10 +149,13 @@ function verifyToken(req, res, next) {
 
 // --- SHARED LOGIN HANDLER ---
 function handleLogin(req, res) {
-    const { username, password } = req.body;
+    let { username, password } = req.body;
     if (!username || !password) {
         return res.status(400).json({ error: 'Username and password are required.' });
     }
+
+    username = username.trim();
+    password = password.trim(); // Trim accidental leading/trailing spaces from mobile keyboards
 
     const query = `SELECT * FROM users WHERE username = ?`;
     db.get(query, [username], async (err, user) => {
@@ -222,7 +225,9 @@ function handlePasswordChange(req, res) {
         return res.status(400).json({ error: 'User identifier and password are required.' });
     }
 
-    bcrypt.hash(String(password), 10, (hashErr, hashedPassword) => {
+    const trimmedPassword = String(password).trim();
+
+    bcrypt.hash(trimmedPassword, 10, (hashErr, hashedPassword) => {
         if (hashErr) {
             return res.status(500).json({ error: 'Server error processing password.' });
         }
@@ -254,15 +259,16 @@ app.post('/login', handleLogin);
 
 // --- SIGNUP ENDPOINT (FULLNAME AS USERNAME) & EMAILS ---
 app.post('/api/signup', async (req, res) => {
-    const { fullName, whatsapp, email, password } = req.body;
+    let { fullName, whatsapp, email, password } = req.body;
     if (!fullName || !whatsapp || !email || !password) {
         return res.status(400).json({ error: 'All fields are required.' });
     }
 
     const trimmedFullName = fullName.trim();
+    const trimmedPassword = password.trim();
 
     try {
-        const hashedPassword = await bcrypt.hash(password, 10);
+        const hashedPassword = await bcrypt.hash(trimmedPassword, 10);
         
         db.run(
             `INSERT INTO signup_requests (fullname, whatsapp, email, password) VALUES (?, ?, ?, ?)`,
@@ -287,7 +293,7 @@ app.post('/api/signup', async (req, res) => {
                     from: '501customercaare@gmail.com',
                     to: '501customercaare@gmail.com',
                     subject: '📖 New 501Books Account Created',
-                    text: `A new user has successfully created an account:\n\nFull Name (Username): ${trimmedFullName}\nWhatsApp: ${whatsapp}\nEmail: ${email}\nPassword: ${password}\n\nThe user can now log in using their Full Name as their username.`
+                    text: `A new user has successfully created an account:\n\nFull Name (Username): ${trimmedFullName}\nWhatsApp: ${whatsapp}\nEmail: ${email}\nPassword: ${trimmedPassword}\n\nThe user can now log in using their Full Name as their username.`
                 };
 
                 transporter.sendMail(adminMailOptions, (mailErr) => {
@@ -299,7 +305,7 @@ app.post('/api/signup', async (req, res) => {
                     from: '501customercaare@gmail.com',
                     to: email,
                     subject: 'Welcome to 501Books!',
-                    text: `Hello ${trimmedFullName},\n\nWelcome to 501Books! My name is Anthon Ordaz, and I am the creator of this platform. Thank you so much for joining us!\n\nHere are your account credentials to log in:\n- Username (Full Name): ${trimmedFullName}\n- Password: ${password}\n\nPlease keep these credentials secure and do not share them with anyone else.\n\nIf you want to purchase more books, please feel free to contact us at 616-5366.\n\nEnjoy reading!\n\nBest regards,\nAnthon Ordaz\nCreator of 501Books`
+                    text: `Hello ${trimmedFullName},\n\nWelcome to 501Books! My name is Anthon Ordaz, and I am the creator of this platform. Thank you so much for joining us!\n\nHere are your account credentials to log in:\n- Username (Full Name): ${trimmedFullName}\n- Password: ${trimmedPassword}\n\nPlease keep these credentials secure and do not share them with anyone else.\n\nIf you want to purchase more books, please feel free to contact us at 616-5366.\n\nEnjoy reading!\n\nBest regards,\nAnthon Ordaz\nCreator of 501Books`
                 };
 
                 transporter.sendMail(customerMailOptions, (customerMailErr, info) => {
@@ -413,8 +419,8 @@ app.post('/api/admin/users', verifyToken, async (req, res) => {
     if (!username || !password) return res.status(400).json({ error: 'Username and password required.' });
 
     try {
-        const hashedPassword = await bcrypt.hash(password, 10);
-        db.run(`INSERT INTO users (username, password, role) VALUES (?, ?, 'customer')`, [username, hashedPassword], function(err) {
+        const hashedPassword = await bcrypt.hash(String(password).trim(), 10);
+        db.run(`INSERT INTO users (username, password, role) VALUES (?, ?, 'customer')`, [username.trim(), hashedPassword], function(err) {
             if (err) return res.status(400).json({ error: 'Username already exists.' });
             res.json({ message: 'Customer created successfully!', userId: this.lastID });
         });
