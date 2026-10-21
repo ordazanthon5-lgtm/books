@@ -523,7 +523,7 @@
                 {
                     title: "Shoe Dog",
                     author: "Phil Knight",
-                    cover: "https://everyday-reading.com/wp-content/uploads/2018/01/shoe-dog.jpeg",
+                    cover: "https://everyday-reading.com/wp-content/covers/shoe-dog.jpeg",
                     description: "The inspiring true story of how a young man built a global empire from a simple idea."
                 },
                 {
@@ -758,8 +758,7 @@
             const title = book.title || 'Untitled Book';
             const author = book.author || 'Unknown Author';
             const url = book.heyzine_url || book.url || '';
-            // Default to 0 instead of 1 so it loads the very first page/cover correctly
-            const currentPage = (book.current_page !== undefined && book.current_page !== null) ? book.current_page : 0;
+            const currentPage = (book.current_page !== undefined && book.current_page !== null) ? book.current_page : null;
 
             openReader(bookId, url, title, author, currentPage);
         }
@@ -841,39 +840,54 @@
                 spread: "none"
             });
 
-            // SMART HOOK: Fixes single-image pages to fill the screen cleanly 
-            // while forcing text colors to white so dark-text EPUBs are readable.
+            // SMART HOOK: Constrains layout, removes white strips, and forces clean dark-mode presentation
             currentRendition.hooks.content.register((contents) => {
                 const doc = contents.document;
-                const images = doc.querySelectorAll('img');
+                const images = doc.querySelectorAll('img, svg');
                 const textContent = doc.body.innerText.trim();
 
-                // Inject global CSS override to force text to white and body to black
-                contents.addStylesheetCss(
-                    "* { color: #FFFFFF !important; background-color: transparent !important; } html, body { background-color: #000000 !important; }"
-                );
+                contents.addStylesheetCss(`
+                    * { 
+                        box-sizing: border-box !important; 
+                    }
+                    html, body { 
+                        background-color: #000000 !important; 
+                        color: #FFFFFF !important; 
+                        margin: 0 !important; 
+                        padding: 0 !important; 
+                        width: 100% !important; 
+                        height: 100% !important; 
+                        max-width: 100vw !important;
+                        overflow-x: hidden !important; 
+                    }
+                    p, span, h1, h2, h3, h4, h5, h6, li, a, div:not(:has(img)) { 
+                        color: #FFFFFF !important; 
+                    }
+                    img, svg { 
+                        max-width: 100% !important; 
+                        max-height: 100vh !important;
+                        width: auto !important;
+                        height: auto !important; 
+                        object-fit: contain !important; 
+                        display: block !important;
+                        margin: 0 auto !important;
+                    }
+                `);
 
-                // Check if the page is a standalone image container (1 image, little to no text)
-                if (images.length === 1 && textContent.length < 10) {
+                // Handle standalone image / cover pages cleanly inside the viewport
+                if (images.length >= 1 && textContent.length < 15) {
                     doc.documentElement.style.height = '100%';
                     doc.body.style.height = '100%';
-                    doc.body.style.margin = '0';
                     doc.body.style.display = 'flex';
                     doc.body.style.justifyContent = 'center';
                     doc.body.style.alignItems = 'center';
                     doc.body.style.backgroundColor = '#000000';
+                    doc.body.style.overflow = 'hidden';
 
-                    const img = images[0];
-                    img.style.maxHeight = '100vh';
-                    img.style.maxWidth = '100vw';
-                    img.style.objectFit = 'contain';
-                } else {
-                    // Safeguard: Ensure normal text/mixed pages reflow and scale safely
                     images.forEach((img) => {
-                        img.style.maxWidth = '100%';
-                        img.style.height = 'auto';
-                        img.style.display = 'block';
-                        img.style.margin = '10px auto';
+                        img.style.maxHeight = '100vh';
+                        img.style.maxWidth = '100vw';
+                        img.style.objectFit = 'contain';
                     });
                 }
             });
@@ -883,8 +897,12 @@
                 return currentBook.locations.generate(1000);
             }).catch(() => {});
 
-            // Handle bookmark restoration & automatic page saving on move silently in background
-            currentRendition.display(startPage).then(() => {
+            // Display target page or default directly to the very first spine page (page 1)
+            const displayPromise = (startPage && startPage !== 0) 
+                ? currentRendition.display(startPage) 
+                : currentRendition.display();
+
+            displayPromise.then(() => {
                 currentRendition.on("relocated", (location) => {
                     const progressCfi = location.start.cfi;
                     
