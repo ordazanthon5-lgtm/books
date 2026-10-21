@@ -443,8 +443,11 @@
                 if (res.ok) {
                     document.getElementById('signup-message-container').innerHTML = `
                         <div style="text-align: center; padding: 2rem 1rem;">
-                            <p style="font-size: 1.1rem; font-weight: 600; color: #FFFFFF; line-height: 1.5;">
+                            <p style="font-size: 1.1rem; font-weight: 600; color: #FFFFFF; line-height: 1.5; margin-bottom: 1rem;">
                                 Account Successfully Created!
+                            </p>
+                            <p style="font-size: 0.9rem; font-weight: 500; color: #EF233C; line-height: 1.4;">
+                                IMPORTANT: close and reopen the app to log into your new account
                             </p>
                         </div>
                     `;
@@ -898,37 +901,23 @@
                 }
             });
 
-            // FORCE START AT ABSOLUTE BEGINNING: Handle books with or without cover images
-            currentBook.ready.then(async () => {
-                // Generate locations in the background for accurate percentage calculations
-                currentBook.locations.generate(1000).catch(() => {});
+            // Generate book locations in the background for accurate percentage calculations
+            currentBook.ready.then(() => {
+                return currentBook.locations.generate(1000);
+            }).catch(() => {});
 
+            // FORCE START AT ABSOLUTE BEGINNING: If no saved bookmark exists, use spine[0] or cover URL
+            currentBook.loaded.navigation.then(async () => {
                 let targetLocation = startPage;
-
                 if (!targetLocation || targetLocation === 0) {
-                    try {
-                        // 1. Try to get the explicit cover href from metadata
-                        const coverHref = await currentBook.coverUrl();
-                        if (coverHref) {
-                            targetLocation = coverHref;
-                        }
-                    } catch (e) {
-                        // No cover metadata found, proceed to fallbacks
-                    }
-
-                    // 2. If no cover URL exists, check if we have a valid spine
-                    if (!targetLocation && currentBook.spine && currentBook.spine.length > 0) {
-                        const firstItem = currentBook.spine.get(0);
-                        if (firstItem && firstItem.href) {
-                            targetLocation = firstItem.href;
-                        }
+                    if (currentBook.cover) {
+                        targetLocation = currentBook.cover;
+                    } else if (currentBook.spine && currentBook.spine.get(0)) {
+                        targetLocation = currentBook.spine.get(0).href;
                     }
                 }
-
-                // 3. Final display call with a failsafe fallback to 0 (beginning of spine)
-                return currentRendition.display(targetLocation || 0);
-            }).catch((err) => {
-                console.error("Error loading book ready state:", err);
+                return currentRendition.display(targetLocation);
+            }).catch(() => {
                 currentRendition.display(startPage || 0);
             });
 
