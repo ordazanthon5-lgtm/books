@@ -840,38 +840,56 @@
                 spread: "none"
             });
 
-            // SMART HOOK: Targets ONLY standalone cover/image pages, leaving normal book text completely pristine
+            // SMART HOOK: Sets dark mode background, forces text white for readability, and contains images cleanly
             currentRendition.hooks.content.register((contents) => {
                 const doc = contents.document;
                 const images = doc.querySelectorAll('img, svg');
                 const textContent = doc.body.innerText.trim();
 
-                // Check if this page is a standalone image/cover page (1 image and little to no text)
-                if (images.length === 1 && textContent.length < 15) {
-                    contents.addStylesheetCss(`
-                        * { box-sizing: border-box !important; }
-                        html, body { 
-                            background-color: #000000 !important; 
-                            margin: 0 !important; 
-                            padding: 0 !important; 
-                            width: 100% !important; 
-                            height: 100% !important; 
-                            max-width: 100vw !important;
-                            overflow: hidden !important; 
-                            display: flex !important;
-                            justify-content: center !important;
-                            align-items: center !important;
-                        }
-                        img, svg { 
-                            max-width: 100vw !important; 
-                            max-height: 100vh !important;
-                            width: auto !important;
-                            height: auto !important; 
-                            object-fit: contain !important; 
-                            display: block !important;
-                            margin: auto !important;
-                        }
-                    `);
+                contents.addStylesheetCss(`
+                    * { 
+                        box-sizing: border-box !important; 
+                    }
+                    html, body { 
+                        background-color: #000000 !important; 
+                        color: #FFFFFF !important; 
+                        margin: 0 !important; 
+                        padding: 0 !important; 
+                        width: 100% !important; 
+                        height: 100% !important; 
+                        max-width: 100vw !important;
+                        overflow-x: hidden !important; 
+                    }
+                    p, span, h1, h2, h3, h4, h5, h6, li, a { 
+                        color: #FFFFFF !important; 
+                    }
+                    img, svg { 
+                        max-width: 100% !important; 
+                        max-height: 100vh !important;
+                        width: auto !important;
+                        height: auto !important; 
+                        object-fit: contain !important; 
+                        display: block !important;
+                        margin: 0 auto !important;
+                    }
+                `);
+
+                // Handle standalone image / cover pages cleanly inside the viewport without split white strips
+                if (images.length >= 1 && textContent.length < 15) {
+                    doc.documentElement.style.height = '100%';
+                    doc.body.style.height = '100%';
+                    doc.body.style.display = 'flex';
+                    doc.body.style.justifyContent = 'center';
+                    doc.body.style.alignItems = 'center';
+                    doc.body.style.backgroundColor = '#000000';
+                    doc.body.style.overflow = 'hidden';
+
+                    images.forEach((img) => {
+                        img.style.maxHeight = '100vh';
+                        img.style.maxWidth = '100vw';
+                        img.style.objectFit = 'contain';
+                        img.style.margin = 'auto';
+                    });
                 }
             });
 
