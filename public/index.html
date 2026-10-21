@@ -898,23 +898,37 @@
                 }
             });
 
-            // Generate book locations in the background for accurate percentage calculations
-            currentBook.ready.then(() => {
-                return currentBook.locations.generate(1000);
-            }).catch(() => {});
+            // FORCE START AT ABSOLUTE BEGINNING: Handle books with or without cover images
+            currentBook.ready.then(async () => {
+                // Generate locations in the background for accurate percentage calculations
+                currentBook.locations.generate(1000).catch(() => {});
 
-            // FORCE START AT ABSOLUTE BEGINNING: If no saved bookmark exists, use spine[0] or cover URL
-            currentBook.loaded.navigation.then(async () => {
                 let targetLocation = startPage;
+
                 if (!targetLocation || targetLocation === 0) {
-                    if (currentBook.cover) {
-                        targetLocation = currentBook.cover;
-                    } else if (currentBook.spine && currentBook.spine.get(0)) {
-                        targetLocation = currentBook.spine.get(0).href;
+                    try {
+                        // 1. Try to get the explicit cover href from metadata
+                        const coverHref = await currentBook.coverUrl();
+                        if (coverHref) {
+                            targetLocation = coverHref;
+                        }
+                    } catch (e) {
+                        // No cover metadata found, proceed to fallbacks
+                    }
+
+                    // 2. If no cover URL exists, check if we have a valid spine
+                    if (!targetLocation && currentBook.spine && currentBook.spine.length > 0) {
+                        const firstItem = currentBook.spine.get(0);
+                        if (firstItem && firstItem.href) {
+                            targetLocation = firstItem.href;
+                        }
                     }
                 }
-                return currentRendition.display(targetLocation);
-            }).catch(() => {
+
+                // 3. Final display call with a failsafe fallback to 0 (beginning of spine)
+                return currentRendition.display(targetLocation || 0);
+            }).catch((err) => {
+                console.error("Error loading book ready state:", err);
                 currentRendition.display(startPage || 0);
             });
 
