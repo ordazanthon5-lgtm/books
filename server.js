@@ -6,8 +6,10 @@ const jwt = require('jsonwebtoken');
 const fs = require('fs');
 const nodemailer = require('nodemailer');
 const cors = require('cors');
+const NodeCache = require('node-cache');
 
 const app = express();
+const searchCache = new NodeCache({ stdTTL: 3600 }); // Cache search queries for 1 hour
 
 // --- MIDDLEWARE ---
 app.use(cors());
@@ -55,7 +57,6 @@ db.serialize(() => {
         password TEXT,
         role TEXT DEFAULT 'customer'
     )`, async () => {
-        // Ensure unique index exists on existing persistent SQLite files
         db.run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON users(username);`, () => {});
 
         try {
@@ -129,10 +130,9 @@ function verifyToken(req, res, next) {
             return res.status(403).json({ error: 'Invalid or expired token.' });
         }
 
-        // Verify session is still active (not overridden by a 3rd device login)
         db.get(`SELECT * FROM sessions WHERE token = ?`, [token], (dbErr, sessionRow) => {
             if (dbErr || !sessionRow) {
-                return res.status(403).json({ error: 'Session expired. Account logged in from another device (maximum 2 devices allowed).' });
+                return res.status(403).json({ error: 'Session expired. Account logged in from another device.' });
             }
 
             db.get(`SELECT username, role FROM users WHERE id = ?`, [decodedUser.id], (userErr, dbUser) => {
@@ -155,7 +155,7 @@ function handleLogin(req, res) {
     }
 
     username = username.trim();
-    password = password.trim(); // Trim accidental leading/trailing spaces from mobile keyboards
+    password = password.trim();
 
     const query = `SELECT * FROM users WHERE username = ?`;
     db.get(query, [username], async (err, user) => {
@@ -169,13 +169,11 @@ function handleLogin(req, res) {
                 return res.status(400).json({ error: 'Invalid username or password.' });
             }
 
-            // Generate token without expiration
             const token = jwt.sign(
                 { id: user.id, username: user.username, role: user.role }, 
                 JWT_SECRET
             );
 
-            // Record session and enforce 2-device limit
             db.run(`INSERT INTO sessions (user_id, token) VALUES (?, ?)`, [user.id, token], (insertErr) => {
                 if (insertErr) {
                     return res.status(500).json({ error: 'Database error recording session.' });
@@ -205,21 +203,6 @@ function handlePasswordChange(req, res) {
 
     let identifier = req.body.userId || req.body.user_id || req.body.id || req.body.customer_id || req.body.username;
     let password = req.body.password || req.body.newPassword || req.body.new_password;
-
-    if (!identifier && req.body && Object.keys(req.body).length > 0) {
-        const keys = Object.keys(req.body);
-        for (let k of keys) {
-            const lower = k.toLowerCase();
-            if (lower.includes('user') || lower.includes('id') || lower.includes('name') || lower.includes('customer')) {
-                identifier = req.body[k];
-            }
-            if (lower.includes('pass')) {
-                password = req.body[k];
-            }
-        }
-        if (!identifier && keys.length >= 1) identifier = req.body[keys[0]];
-        if (!password && keys.length >= 2) password = req.body[keys[1]];
-    }
 
     if (!identifier || password === undefined || password === null || password === '') {
         return res.status(400).json({ error: 'User identifier and password are required.' });
@@ -254,10 +237,60 @@ app.get('/api/status', (req, res) => {
     res.json({ status: '501Books server is running successfully!' });
 });
 
+// --- WORLDWIDE BOOK SEARCH PROXY (USING OPEN LIBRARY) ---
+app.get('/api/books/search', async (req, res) => {
+    const query = req.query.q?.toLowerCase().trim();
+    if (!query || query.length < 2) {
+        return res.json({ items: [] });
+    }
+
+    if (searchCache.has(query)) {
+        return res.json(searchCache.get(query));
+    }
+
+    try {
+        const response = await fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=5`, {
+            headers: {
+                'User-Agent': '501BooksApp/1.0 (admin@501books.com)'
+            }
+        });
+        
+        if (!response.ok) {
+            return res.status(response.status).json({ error: 'Search service busy. Please try again.' });
+        }
+
+        const data = await response.json();
+        
+        const items = (data.docs || []).map(doc => {
+            const title = doc.title || 'Unknown Title';
+            const author = doc.author_name ? doc.author_name.join(', ') : 'Unknown Author';
+            const coverId = doc.cover_i;
+            const cover = coverId 
+                ? `https://covers.openlibrary.org/b/id/${coverId}-M.jpg` 
+                : 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=500&q=80';
+            
+            return {
+                volumeInfo: {
+                    title: title,
+                    authors: [author],
+                    imageLinks: { thumbnail: cover },
+                    description: doc.first_sentence ? doc.first_sentence.join(' ') : `A book titled ${title} by ${author}.`
+                }
+            };
+        });
+
+        const resultPayload = { items };
+        searchCache.set(query, resultPayload);
+        res.json(resultPayload);
+    } catch (err) {
+        console.error('Open Library proxy search error:', err);
+        res.status(500).json({ error: 'Failed to fetch search results' });
+    }
+});
+
 app.post('/api/login', handleLogin);
 app.post('/login', handleLogin);
 
-// --- SIGNUP ENDPOINT (FULLNAME AS USERNAME) & EMAILS ---
 app.post('/api/signup', async (req, res) => {
     let { fullName, whatsapp, email, password } = req.body;
     if (!fullName || !whatsapp || !email || !password) {
@@ -273,9 +306,7 @@ app.post('/api/signup', async (req, res) => {
         db.run(
             `INSERT INTO signup_requests (fullname, whatsapp, email, password) VALUES (?, ?, ?, ?)`,
             [trimmedFullName, whatsapp, email, hashedPassword],
-            (err) => {
-                if (err) console.error('Error saving to signup_requests:', err);
-            }
+            (err) => { if (err) console.error('Error saving to signup_requests:', err); }
         );
 
         db.run(
@@ -284,13 +315,10 @@ app.post('/api/signup', async (req, res) => {
             [trimmedFullName, hashedPassword, hashedPassword],
             function(dbErr) {
                 if (dbErr) {
-                    console.error('Database error creating active user account:', dbErr);
                     return res.status(400).json({ error: 'An account with this name already exists or database error.' });
                 }
 
                 const newUserId = this.lastID;
-
-                // Automatically pre-load "SAMPLE BOOK (Lover Her Wild)" into the user's library
                 const defaultBookTitle = "SAMPLE BOOK (Lover Her Wild)";
                 const defaultBookAuthor = "Atticus";
                 const defaultBookEpubUrl = "https://pub-937728d8eaaa44d38ec534532f9c4ca4.r2.dev/love%20her%20wild%20Real.epub";
@@ -299,40 +327,24 @@ app.post('/api/signup', async (req, res) => {
                 db.run(
                     `INSERT INTO books (user_id, title, author, heyzine_url, cover_url) VALUES (?, ?, ?, ?, ?)`,
                     [newUserId, defaultBookTitle, defaultBookAuthor, defaultBookEpubUrl, defaultBookCoverUrl],
-                    (bookErr) => {
-                        if (bookErr) {
-                            console.error('Error seeding default book for new user:', bookErr);
-                        }
-                    }
+                    (bookErr) => { if (bookErr) console.error('Error seeding default book:', bookErr); }
                 );
 
-                // 1. Email notification to you (admin)
                 const adminMailOptions = {
                     from: '501customercaare@gmail.com',
                     to: '501customercaare@gmail.com',
                     subject: '📖 New 501Books Account Created',
-                    text: `A new user has successfully created an account:\n\nFull Name (Username): ${trimmedFullName}\nWhatsApp: ${whatsapp}\nEmail: ${email}\nPassword: ${trimmedPassword}\n\nThe user can now log in using their Full Name as their username.`
+                    text: `A new user has successfully created an account:\n\nFull Name (Username): ${trimmedFullName}\nWhatsApp: ${whatsapp}\nEmail: ${email}\nPassword: ${trimmedPassword}`
                 };
+                transporter.sendMail(adminMailOptions, (mailErr) => { if (mailErr) console.error(mailErr); });
 
-                transporter.sendMail(adminMailOptions, (mailErr) => {
-                    if (mailErr) console.error('Error sending admin notification email:', mailErr);
-                });
-
-                // 2. Welcome email to the customer
                 const customerMailOptions = {
                     from: '501customercaare@gmail.com',
                     to: email,
                     subject: 'Welcome to 501Books!',
-                    text: `Hello ${trimmedFullName},\n\nWelcome to 501Books! My name is Anthon Ordaz, and I am the creator of this platform. Thank you so much for joining us!\n\nHere are your account credentials to log in:\n- Username (Full Name): ${trimmedFullName}\n- Password: ${trimmedPassword}\n\nPlease keep these credentials secure and do not share them with anyone else.\n\nWe have also pre-loaded your first book, "SAMPLE BOOK (Lover Her Wild)" by Atticus, straight into your library!\n\nIf you want to purchase more books, please feel free to contact us at 616-5366.\n\nEnjoy reading!\n\nBest regards,\nAnthon Ordaz\nCreator of 501Books`
+                    text: `Hello ${trimmedFullName},\n\nWelcome to 501Books! Here are your account credentials:\n- Username: ${trimmedFullName}\n- Password: ${trimmedPassword}\n\nEnjoy reading!`
                 };
-
-                transporter.sendMail(customerMailOptions, (customerMailErr, info) => {
-                    if (customerMailErr) {
-                        console.error('Error sending welcome email to customer:', customerMailErr);
-                    } else {
-                        console.log('Customer welcome email sent:', info.response);
-                    }
-                });
+                transporter.sendMail(customerMailOptions, (customerMailErr) => { if (customerMailErr) console.error(customerMailErr); });
 
                 res.json({ message: 'Account Created' });
             }
@@ -340,6 +352,59 @@ app.post('/api/signup', async (req, res) => {
     } catch (hashErr) {
         res.status(500).json({ error: 'Server error processing request.' });
     }
+});
+
+// --- BOOK REQUEST ENDPOINT (INCLUDES USER ACCOUNT EMAIL & WHATSAPP PHONE NUMBER) ---
+app.post('/api/request-book', verifyToken, (req, res) => {
+    const { title, author, description, cover } = req.body;
+    if (!title) {
+        return res.status(400).json({ error: 'Book title is required.' });
+    }
+
+    const requestedBy = req.user.username;
+    const userId = req.user.id;
+
+    // Fetch user's signup request details (email and whatsapp) from database
+    db.get(`SELECT email, whatsapp FROM signup_requests WHERE fullname = ? ORDER BY created_at DESC LIMIT 1`, [requestedBy], (userErr, userRow) => {
+        const userEmail = userRow && userRow.email ? userRow.email : 'Not provided / Admin created';
+        const userWhatsapp = userRow && userRow.whatsapp ? userRow.whatsapp : 'Not provided';
+
+        const mailOptions = {
+            from: '501customercaare@gmail.com',
+            to: '501bookreq@gmail.com',
+            subject: `[501Books Request] ${title}`,
+            html: `
+                <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
+                    <h2 style="color: #EF233C;">New Book Request</h2>
+                    <div style="background-color: #f7f9fa; padding: 15px; border-radius: 6px; margin-bottom: 20px;">
+                        <h3 style="margin-top: 0; color: #0D1B2A;">Customer Account Information:</h3>
+                        <p style="margin: 5px 0;"><strong>Username (Full Name):</strong> ${requestedBy}</p>
+                        <p style="margin: 5px 0;"><strong>Account E-Mail:</strong> <a href="mailto:${userEmail}">${userEmail}</a></p>
+                        <p style="margin: 5px 0;"><strong>WhatsApp Phone Number:</strong> ${userWhatsapp}</p>
+                        <p style="margin: 5px 0;"><strong>User ID:</strong> ${userId}</p>
+                    </div>
+                    <hr style="border: none; border-top: 1px solid #ccc; margin: 20px 0;">
+                    <h3>Requested Book Details</h3>
+                    <div style="display: flex; gap: 20px; align-items: flex-start;">
+                        <img src="${cover || ''}" alt="Book Cover" style="width: 120px; border-radius: 4px; border: 1px solid #ddd;" />
+                        <div>
+                            <h4 style="margin: 0 0 5px 0; font-size: 18px; color: #0D1B2A;">${title}</h4>
+                            <p style="margin: 0 0 10px 0; color: #666;"><strong>Author:</strong> ${author || 'Not specified'}</p>
+                            <p style="font-size: 14px; color: #444; line-height: 1.4;"><strong>Description:</strong> ${description || 'No description available.'}</p>
+                        </div>
+                    </div>
+                </div>
+            `
+        };
+
+        transporter.sendMail(mailOptions, (err) => {
+            if (err) {
+                console.error('Error sending book request email:', err);
+                return res.status(500).json({ error: 'Failed to send book request email.' });
+            }
+            res.json({ message: 'Request sent successfully!' });
+        });
+    });
 });
 
 app.get('/api/me', verifyToken, (req, res) => {

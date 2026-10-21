@@ -35,6 +35,17 @@
         input, select { width: 100%; padding: 0.75rem 1rem; border-radius: 10px; border: 1px solid #1B263B; background: #000000; color: #FFFFFF; font-size: 0.95rem; }
         input:focus, select:focus { outline: none; border-color: #EF233C; box-shadow: 0 0 0 3px rgba(239, 35, 60, 0.2); background: #000000; }
         
+        /* MODERN DASHBOARD SEARCH BAR STYLING */
+        .modern-search-wrapper { position: relative; width: 100%; }
+        .modern-search-input-box { width: 100%; padding: 0.9rem 1rem 0.9rem 2.8rem; border-radius: 14px; border: 1px solid #27374D; background: #000000; color: #FFFFFF; font-size: 0.95rem; transition: all 0.3s ease; box-shadow: inset 0 2px 4px rgba(0,0,0,0.6); }
+        .modern-search-input-box:focus { outline: none; border-color: #EF233C; box-shadow: 0 0 0 4px rgba(239, 35, 60, 0.25), inset 0 2px 4px rgba(0,0,0,0.6); }
+        .modern-search-icon { position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); font-size: 1.1rem; color: #94a3b8; pointer-events: none; }
+        
+        .modern-search-dropdown { display: none; position: absolute; top: calc(100% + 8px); left: 0; right: 0; background-color: #080f18; border: 1px solid #27374D; border-radius: 12px; max-height: 280px; overflow-y: auto; z-index: 1000; box-shadow: 0 12px 30px rgba(0,0,0,0.7); backdrop-filter: blur(10px); }
+        .modern-search-dropdown-item { padding: 12px 16px; cursor: pointer; border-bottom: 1px solid #1B263B; color: #FFFFFF; font-size: 0.9rem; transition: background 0.15s ease; display: flex; flex-direction: column; gap: 2px; }
+        .modern-search-dropdown-item:last-child { border-bottom: none; }
+        .modern-search-dropdown-item:hover { background: #132238; border-left: 3px solid #EF233C; padding-left: 14px; }
+
         button.btn-primary { background: #EF233C; color: #FFFFFF; border: none; padding: 0.8rem 1.5rem; border-radius: 10px; cursor: pointer; font-weight: 600; width: 100%; font-size: 0.95rem; box-shadow: 0 4px 12px rgba(239, 35, 60, 0.3); transition: background 0.2s; }
         button.btn-primary:hover { background: #d90429; }
         
@@ -103,97 +114,27 @@
         #epub-viewer { width: 100%; height: 100%; }
         
         /* Reader Tap Zones for Page Turning & Menu Toggle */
-        .reader-tap-zone {
-            position: absolute;
-            top: 0;
-            height: 100%;
-            z-index: 99998;
-            cursor: pointer;
-        }
+        .reader-tap-zone { position: absolute; top: 0; height: 100%; z-index: 99998; cursor: pointer; }
         .reader-tap-left { left: 0; width: 30%; }
         .reader-tap-center { left: 30%; width: 40%; }
         .reader-tap-right { right: 0; width: 30%; }
 
         /* Floating Overlay Controls with Smooth Fade & Toggle Support */
-        .reader-nav-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 100000;
-            pointer-events: none; /* Let clicks pass through empty overlay space to tap zones */
-            opacity: 1;
-            visibility: visible;
-            transition: opacity 0.3s ease, visibility 0.3s ease;
-        }
-
-        .reader-nav-overlay.hidden {
-            opacity: 0;
-            visibility: hidden;
-            pointer-events: none;
-        }
-
-        .reader-nav-overlay * {
-            pointer-events: auto;
-        }
+        .reader-nav-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 100000; pointer-events: none; opacity: 1; visibility: visible; transition: opacity 0.3s ease, visibility 0.3s ease; }
+        .reader-nav-overlay.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+        .reader-nav-overlay * { pointer-events: auto; }
 
         .floating-nav-top-left { position: absolute; top: 1.25rem; left: 1.25rem; }
-        .floating-nav-bottom {
-            position: absolute;
-            bottom: 1.25rem;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(13, 27, 42, 0.85);
-            color: #FFFFFF;
-            border: 1px solid rgba(39, 55, 77, 0.8);
-            padding: 0.5rem 1rem;
-            border-radius: 50px;
-            font-weight: 600;
-            font-size: 0.85rem;
-            backdrop-filter: blur(5px);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-        }
+        .floating-nav-bottom { position: absolute; bottom: 1.25rem; left: 50%; transform: translateX(-50%); background: rgba(13, 27, 42, 0.85); color: #FFFFFF; border: 1px solid rgba(39, 55, 77, 0.8); padding: 0.5rem 1rem; border-radius: 50px; font-weight: 600; font-size: 0.85rem; backdrop-filter: blur(5px); box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
 
         .btn-float { background: rgba(13, 27, 42, 0.85); color: #FFFFFF; border: 1px solid rgba(39, 55, 77, 0.8); padding: 0.75rem 1.1rem; border-radius: 50px; cursor: pointer; font-weight: 600; font-size: 0.9rem; backdrop-filter: blur(5px); box-shadow: 0 4px 15px rgba(0,0,0,0.5); transition: all 0.2s; }
         .btn-float:hover { background: #EF233C; border-color: #EF233C; transform: scale(1.05); }
 
         /* ONE-TIME TUTORIAL TIP OVERLAY STYLES */
-        .reader-tip-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.75);
-            backdrop-filter: blur(3px);
-            z-index: 150000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: opacity 0.5s ease;
-            pointer-events: none;
-        }
-        .reader-tip-card {
-            background: #0D1B2A;
-            border: 2px solid #EF233C;
-            padding: 1.5rem 2rem;
-            border-radius: 16px;
-            text-align: center;
-            max-width: 320px;
-            box-shadow: 0 10px 30px rgba(239, 35, 60, 0.4);
-            animation: tipPulse 1.5s infinite alternate;
-        }
-        .reader-tip-arrows {
-            font-size: 1.5rem;
-            letter-spacing: 0.5rem;
-            color: #EF233C;
-            margin-bottom: 0.5rem;
-        }
-        @keyframes tipPulse {
-            0% { transform: scale(1); }
-            100% { transform: scale(1.03); }
-        }
+        .reader-tip-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(3px); z-index: 150000; display: flex; align-items: center; justify-content: center; transition: opacity 0.5s ease; pointer-events: none; }
+        .reader-tip-card { background: #0D1B2A; border: 2px solid #EF233C; padding: 1.5rem 2rem; border-radius: 16px; text-align: center; max-width: 320px; box-shadow: 0 10px 30px rgba(239, 35, 60, 0.4); animation: tipPulse 1.5s infinite alternate; }
+        .reader-tip-arrows { font-size: 1.5rem; letter-spacing: 0.5rem; color: #EF233C; margin-bottom: 0.5rem; }
+        @keyframes tipPulse { 0% { transform: scale(1); } 100% { transform: scale(1.03); } }
 
         .alert { padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.9rem; font-weight: 500; }
         .alert-error { background: #1B263B; color: #EF233C; border: 1px solid #EF233C; }
@@ -290,6 +231,24 @@
             </div>
         </div>
 
+        <!-- GLOBAL BOOK REQUEST MODAL (DETAILS POPUP) -->
+        <div id="book-request-modal" class="modal-overlay hidden">
+            <div class="modal-card" style="max-width: 450px;">
+                <button class="modal-close" onclick="closeBookRequestModal()">&times;</button>
+                <h2 style="margin-bottom: 1rem;">Book Details</h2>
+                <div style="display: flex; gap: 1rem; margin-bottom: 1rem; align-items: flex-start;">
+                    <img id="req-modal-cover" src="" alt="Book Cover" style="width: 100px; height: 140px; object-fit: cover; border-radius: 8px; background: #1B263B; border: 1px solid #1B263B; flex-shrink: 0;">
+                    <div>
+                        <h3 id="req-modal-title" style="font-size: 1.1rem; margin-bottom: 0.3rem; color: #FFFFFF;"></h3>
+                        <p id="req-modal-author" style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 0.5rem;"></p>
+                    </div>
+                </div>
+                <!-- Description displays here inside popup -->
+                <p id="req-modal-desc" style="font-size: 0.85rem; color: #cbd5e1; max-height: 140px; overflow-y: auto; margin-bottom: 1.25rem; line-height: 1.4;"></p>
+                <button id="req-modal-btn" class="btn-primary" onclick="submitBookRequest()">Request</button>
+            </div>
+        </div>
+
         <!-- DASHBOARDS -->
         <div id="dashboard-container" class="dashboard-main hidden">
             <!-- ADMIN VIEW -->
@@ -347,6 +306,17 @@
 
             <!-- CUSTOMER VIEW -->
             <div id="customer-view" class="hidden">
+                <!-- MODERN GLOBAL SEARCH BAR TO REQUEST ANY BOOK -->
+                <div class="card" style="margin-bottom: 1.5rem;">
+                    <h2>Search Books</h2>
+                    <p style="color: #94a3b8; font-size: 0.9rem; margin-bottom: 1rem;">Search millions of books worldwide and request them for your library.</p>
+                    <div class="modern-search-wrapper">
+                        <span class="modern-search-icon">🔍</span>
+                        <input type="text" id="global-book-search-input" class="modern-search-input-box" placeholder="Search any book title or author..." autocomplete="off">
+                        <div id="global-search-dropdown" class="modern-search-dropdown"></div>
+                    </div>
+                </div>
+
                 <div class="library-tabs">
                     <button id="tab-active-books" class="tab-btn active" onclick="switchLibraryTab('active')">📖 My Library</button>
                     <button id="tab-completed-books" class="tab-btn" onclick="switchLibraryTab('completed')">✅ Completed Books</button>
@@ -377,7 +347,7 @@
                     <div class="reader-tap-zone reader-tap-center" onclick="toggleReaderOverlay()" title="Toggle Menu"></div>
                     <div class="reader-tap-zone reader-tap-right" onclick="nextPage()" title="Next Page"></div>
 
-                    <!-- Floating Navigation Overlay (Tappable / Auto-Hide Container) -->
+                    <!-- Floating Navigation Overlay -->
                     <div class="reader-nav-overlay" id="reader-nav-overlay">
                         <div class="floating-nav-top-left">
                             <button class="btn-float" onclick="closeReader()">← Library</button>
@@ -387,7 +357,7 @@
                         </div>
                     </div>
 
-                    <!-- One-Time Tutorial Tip Overlay (Lasts 3 Seconds) -->
+                    <!-- One-Time Tutorial Tip Overlay -->
                     <div id="reader-tip-overlay" class="reader-tip-overlay hidden">
                         <div class="reader-tip-card">
                             <div class="reader-tip-arrows">👆</div>
@@ -458,6 +428,128 @@
                 alert('An error occurred. Please try again.');
             }
         });
+
+        // --- GLOBAL SEARCH & REQUEST LOGIC ---
+        let searchDebounceTimer = null;
+        let selectedRequestBook = null;
+
+        const globalSearchInput = document.getElementById('global-book-search-input');
+        const globalSearchDropdown = document.getElementById('global-search-dropdown');
+
+        if (globalSearchInput) {
+            globalSearchInput.addEventListener('input', (e) => {
+                const query = e.target.value.trim();
+                clearTimeout(searchDebounceTimer);
+
+                if (query.length < 3) {
+                    globalSearchDropdown.innerHTML = '';
+                    globalSearchDropdown.style.display = 'none';
+                    return;
+                }
+
+                searchDebounceTimer = setTimeout(async () => {
+                    try {
+                        const res = await fetch(`/api/books/search?q=${encodeURIComponent(query)}`);
+                        
+                        if (res.status === 429) {
+                            globalSearchDropdown.style.display = 'block';
+                            globalSearchDropdown.innerHTML = `<div style="padding: 12px 16px; color: #EF233C; font-size: 0.9rem;">Too many searches. Please wait a moment and try again.</div>`;
+                            return;
+                        }
+
+                        const data = await res.json();
+
+                        globalSearchDropdown.innerHTML = '';
+                        if (data.items && data.items.length > 0) {
+                            globalSearchDropdown.style.display = 'block';
+                            data.items.forEach(item => {
+                                const info = item.volumeInfo;
+                                const title = info.title || 'Unknown Title';
+                                const authors = info.authors ? info.authors.join(', ') : 'Unknown Author';
+                                const cover = info.imageLinks && info.imageLinks.thumbnail ? info.imageLinks.thumbnail : 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=500&q=80';
+                                const description = info.description || 'No description available.';
+
+                                const div = document.createElement('div');
+                                div.className = 'modern-search-dropdown-item';
+                                div.innerHTML = `<strong style="font-size: 0.95rem; color: #FFFFFF;">${title}</strong> <span style="color: #94a3b8; font-size: 0.8rem;">by ${authors}</span>`;
+                                div.onclick = () => {
+                                    selectedRequestBook = {
+                                        title: title,
+                                        author: authors,
+                                        cover: cover,
+                                        description: description
+                                    };
+                                    openBookRequestModal();
+                                };
+                                globalSearchDropdown.appendChild(div);
+                            });
+                        } else {
+                            globalSearchDropdown.style.display = 'block';
+                            globalSearchDropdown.innerHTML = `<div style="padding: 12px 16px; color: #94a3b8; font-size: 0.9rem;">No books found.</div>`;
+                        }
+                    } catch (err) {
+                        console.error('Search API error:', err);
+                    }
+                }, 500);
+            });
+        }
+
+        function openBookRequestModal() {
+            if (!selectedRequestBook) return;
+            document.getElementById('req-modal-cover').src = selectedRequestBook.cover;
+            document.getElementById('req-modal-title').textContent = selectedRequestBook.title;
+            document.getElementById('req-modal-author').textContent = `by ${selectedRequestBook.author}`;
+            document.getElementById('req-modal-desc').textContent = selectedRequestBook.description;
+
+            const reqBtn = document.getElementById('req-modal-btn');
+            reqBtn.textContent = 'Request';
+            reqBtn.disabled = false;
+            reqBtn.style.background = '#EF233C';
+
+            document.getElementById('book-request-modal').classList.remove('hidden');
+            globalSearchDropdown.style.display = 'none';
+            globalSearchInput.value = '';
+        }
+
+        function closeBookRequestModal() {
+            document.getElementById('book-request-modal').classList.add('hidden');
+            selectedRequestBook = null;
+        }
+
+        async function submitBookRequest() {
+            if (!selectedRequestBook) return;
+            const reqBtn = document.getElementById('req-modal-btn');
+            reqBtn.textContent = 'Sending...';
+            reqBtn.disabled = true;
+
+            try {
+                const res = await fetch('/api/request-book', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${getToken()}`
+                    },
+                    body: JSON.stringify(selectedRequestBook)
+                });
+
+                const data = await res.json();
+                if (res.ok) {
+                    reqBtn.textContent = 'Thank you, your book will be added shortly';
+                    reqBtn.style.background = '#28a745'; // Green success state
+                } else {
+                    alert(data.error || 'Failed to send request.');
+                    reqBtn.textContent = 'Request';
+                    reqBtn.disabled = false;
+                    reqBtn.style.background = '#EF233C';
+                }
+            } catch (err) {
+                console.error('Error submitting request:', err);
+                alert('Network error. Please try again.');
+                reqBtn.textContent = 'Request';
+                reqBtn.disabled = false;
+                reqBtn.style.background = '#EF233C';
+            }
+        }
 
         function openWhatsAppGetBook() {
             const phone = '5016165366';
@@ -538,35 +630,39 @@
                 {
                     title: "The Psychology of Money",
                     author: "Morgan Housel",
-                    cover: "https://arrowpointwealth.com/wp-content/uploads/2021/06/psychology-of-money.png",
+                    cover: "https://arrowpointwealth.com/wp-content/covers/psychology-of-money.png",
                     description: "Timeless lessons on wealth, greed, and happiness, emphasizing the importance of behavior over knowledge in financial success."
                 },
                 {
                     title: "Dead Beat",
                     author: "Leigh Bardugo",
                     cover: "https://m.media-amazon.com/images/S/compressed.photo.goodreads.com/books/1772037931i/247785403.jpg",
-                    description: "A thrilling fantasy novel that follows a young woman navigating a world of magic, crime, and intrigue, as she seeks to uncover the truth behind her mysterious past."
-                },  {
+                    description: "A thrilling fantasy novel that follows a young woman navigating a world of magic, crime, and intrigue."
+                },
+                {
                     title: "The Calamity Club",
                     author: "Kathryn Stockett",
                     cover: "https://m.media-amazon.com/images/I/81zVu7TK1NL._SL1500_.jpg",
-                    description: "A gripping tale of friendship, betrayal, and resilience set against the backdrop of a small Southern town, where secrets and scandals threaten to unravel the lives of its residents."
-                },  {
+                    description: "A gripping tale of friendship, betrayal, and resilience set against the backdrop of a small Southern town."
+                },
+                {
                     title: "Exit Club",
                     author: "Emily St. John Mandel",
                     cover: "https://m.media-amazon.com/images/S/compressed.photo.goodreads.com/books/1767644639i/241683548.jpg",
-                    description: "A post-apocalyptic novel that explores the lives of a group of survivors navigating a world devastated by a mysterious pandemic, as they grapple with loss, identity, and the search for meaning in a changed society."
-                },  {
+                    description: "A post-apocalyptic novel that explores the lives of a group of survivors navigating a world devastated by a mysterious pandemic."
+                },
+                {
                     title: "The Knave and the Moon",
                     author: "Rachel Gillig",
                     cover: "https://www.thecreativemuggle.com/wp-content/uploads/2026/01/The-Knave-and-the-Moon-by-Rachel-Gillig-683x1024.jpg",
-                    description: "A whimsical and enchanting story that follows a young protagonist on a magical journey through a fantastical world, where they encounter mythical creatures, uncover hidden truths, and discover the power of courage and friendship."
-                },  {
+                    description: "A whimsical and enchanting story that follows a young protagonist on a magical journey through a fantastical world."
+                },
+                {
                     title: "Hollow Bones",
                     author: "Jodi Picoult",
                     cover: "https://m.media-amazon.com/images/I/81JuGnOFPdL._SL1500_.jpg",
-                    description: "A gripping psychological thriller that delves into the complexities of family dynamics, secrets, and the consequences of past actions, as a family grapples with a shocking revelation that threatens to unravel their lives."
-                },
+                    description: "A gripping psychological thriller that delves into the complexities of family dynamics, secrets, and consequences."
+                }
             ];
 
             grid.innerHTML = topBooks.map(b => `
@@ -812,10 +908,8 @@
             document.getElementById('reader-view').classList.remove('hidden');
             document.getElementById('fab-get-book').classList.add('hidden');
             
-            // Ensure controls start visible when opening a book
             document.getElementById('reader-nav-overlay').classList.remove('hidden');
 
-            // Show 3-second tutorial tip overlay
             const tipOverlay = document.getElementById('reader-tip-overlay');
             tipOverlay.classList.remove('hidden');
             tipOverlay.style.opacity = '1';
@@ -826,7 +920,6 @@
                 setTimeout(() => tipOverlay.classList.add('hidden'), 500);
             }, 3000);
 
-            // Clear previous viewer content & destroy any active epub instance cleanly
             if (currentBook) {
                 currentBook.destroy();
                 currentBook = null;
@@ -835,7 +928,6 @@
             document.getElementById('epub-viewer').innerHTML = '';
             document.getElementById('reader-progress-text').textContent = '0%';
 
-            // Initialize epub.js book & rendition with spread: "none"
             currentBook = ePub(url);
             currentRendition = currentBook.renderTo("epub-viewer", {
                 width: "100%",
@@ -843,7 +935,6 @@
                 spread: "none"
             });
 
-            // NATIVE THEME ENGINE: Registers dark mode without breaking Epub.js column calculations
             currentRendition.themes.register("dark", {
                 "body": {
                     "background-color": "#000000 !important",
@@ -855,13 +946,11 @@
             });
             currentRendition.themes.select("dark");
 
-            // CONTENT HOOK: Solves full-page cover image scaling without touching text columns
             currentRendition.hooks.content.register((contents) => {
                 const doc = contents.document;
                 const images = doc.querySelectorAll('img, svg');
                 const textContent = doc.body.innerText.trim();
 
-                // Standalone image or cover page handler
                 if (images.length === 1 && textContent.length < 15) {
                     contents.addStylesheetCss(`
                         html, body { 
@@ -886,7 +975,6 @@
                         }
                     `);
                 } else {
-                    // Normal text pages: restrict image sizes so embedded inline images don't overflow text
                     contents.addStylesheetCss(`
                         img, svg, svg image {
                             max-width: 100% !important;
@@ -901,12 +989,10 @@
                 }
             });
 
-            // Generate book locations in the background for accurate percentage calculations
             currentBook.ready.then(() => {
                 return currentBook.locations.generate(1000);
             }).catch(() => {});
 
-            // FORCE START AT ABSOLUTE BEGINNING: If no saved bookmark exists, use spine[0] or cover URL
             currentBook.loaded.navigation.then(async () => {
                 let targetLocation = startPage;
                 if (!targetLocation || targetLocation === 0) {
@@ -924,7 +1010,6 @@
             currentRendition.on("relocated", (location) => {
                 const progressCfi = location.start.cfi;
                 
-                // Calculate percentage with fallback
                 let percentage = 0;
                 if (currentBook.locations && currentBook.locations.total > 0) {
                     const pct = currentBook.locations.percentageFromCfi(progressCfi);
@@ -960,15 +1045,11 @@
         }
 
         function prevPage() {
-            if (currentRendition) {
-                currentRendition.prev();
-            }
+            if (currentRendition) { currentRendition.prev(); }
         }
 
         function nextPage() {
-            if (currentRendition) {
-                currentRendition.next();
-            }
+            if (currentRendition) { currentRendition.next(); }
         }
 
         function toggleReaderOverlay() {
