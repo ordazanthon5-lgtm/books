@@ -903,10 +903,15 @@
                 return currentBook.locations.generate(1000);
             }).catch(() => {});
 
-            // Display target page or default directly to page 1
-            const displayPromise = (startPage && startPage !== 0) 
-                ? currentRendition.display(startPage) 
-                : currentRendition.display();
+            // Display target page or explicitly start at spine index 0 (the absolute beginning/cover)
+            let displayPromise;
+            if (startPage && startPage !== 0) {
+                displayPromise = currentRendition.display(startPage);
+            } else if (currentBook.spine && currentBook.spine.get(0)) {
+                displayPromise = currentRendition.display(currentBook.spine.get(0).href);
+            } else {
+                displayPromise = currentRendition.display();
+            }
 
             displayPromise.then(() => {
                 currentRendition.on("relocated", (location) => {
