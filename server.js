@@ -288,6 +288,24 @@ app.post('/api/signup', async (req, res) => {
                     return res.status(400).json({ error: 'An account with this name already exists or database error.' });
                 }
 
+                const newUserId = this.lastID;
+
+                // Automatically pre-load "SAMPLE BOOK (Lover Her Wild)" into the user's library
+                const defaultBookTitle = "SAMPLE BOOK (Lover Her Wild)";
+                const defaultBookAuthor = "Atticus";
+                const defaultBookEpubUrl = "https://pub-937728d8eaaa44d38ec534532f9c4ca4.r2.dev/love%20her%20wild%20Real.epub";
+                const defaultBookCoverUrl = "https://d28hgpri8am2if.cloudfront.net/book_images/onix/cvr9781501171239/love-her-wild-9781501171239_hr.jpg";
+
+                db.run(
+                    `INSERT INTO books (user_id, title, author, heyzine_url, cover_url) VALUES (?, ?, ?, ?, ?)`,
+                    [newUserId, defaultBookTitle, defaultBookAuthor, defaultBookEpubUrl, defaultBookCoverUrl],
+                    (bookErr) => {
+                        if (bookErr) {
+                            console.error('Error seeding default book for new user:', bookErr);
+                        }
+                    }
+                );
+
                 // 1. Email notification to you (admin)
                 const adminMailOptions = {
                     from: '501customercaare@gmail.com',
@@ -305,7 +323,7 @@ app.post('/api/signup', async (req, res) => {
                     from: '501customercaare@gmail.com',
                     to: email,
                     subject: 'Welcome to 501Books!',
-                    text: `Hello ${trimmedFullName},\n\nWelcome to 501Books! My name is Anthon Ordaz, and I am the creator of this platform. Thank you so much for joining us!\n\nHere are your account credentials to log in:\n- Username (Full Name): ${trimmedFullName}\n- Password: ${trimmedPassword}\n\nPlease keep these credentials secure and do not share them with anyone else.\n\nIf you want to purchase more books, please feel free to contact us at 616-5366.\n\nEnjoy reading!\n\nBest regards,\nAnthon Ordaz\nCreator of 501Books`
+                    text: `Hello ${trimmedFullName},\n\nWelcome to 501Books! My name is Anthon Ordaz, and I am the creator of this platform. Thank you so much for joining us!\n\nHere are your account credentials to log in:\n- Username (Full Name): ${trimmedFullName}\n- Password: ${trimmedPassword}\n\nPlease keep these credentials secure and do not share them with anyone else.\n\nWe have also pre-loaded your first book, "SAMPLE BOOK (Lover Her Wild)" by Atticus, straight into your library!\n\nIf you want to purchase more books, please feel free to contact us at 616-5366.\n\nEnjoy reading!\n\nBest regards,\nAnthon Ordaz\nCreator of 501Books`
                 };
 
                 transporter.sendMail(customerMailOptions, (customerMailErr, info) => {
