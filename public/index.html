@@ -840,11 +840,16 @@
             });
 
             // SMART HOOK: Fixes single-image pages to fill the screen cleanly 
-            // while keeping regular text chapters completely untouched.
+            // while forcing text colors to white so dark-text EPUBs are readable.
             currentRendition.hooks.content.register((contents) => {
                 const doc = contents.document;
                 const images = doc.querySelectorAll('img');
                 const textContent = doc.body.innerText.trim();
+
+                // Inject global CSS override to force text to white and body to black
+                contents.addStylesheetCss(
+                    "* { color: #FFFFFF !important; background-color: transparent !important; } html, body { background-color: #000000 !important; }"
+                );
 
                 // Check if the page is a standalone image container (1 image, little to no text)
                 if (images.length === 1 && textContent.length < 10) {
