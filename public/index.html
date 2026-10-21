@@ -841,9 +841,8 @@
                 spread: "none"
             });
 
-            // Register content hook: Inject CSS styles to fit images completely inside viewport
+            // Register content hook: Inject CSS styles to size images correctly to full width without shrinking
             currentRendition.hooks.content.register((contents) => {
-                // Force body & document background to black with white text
                 contents.addStylesheetCss(
                     `
                     html, body { 
@@ -857,9 +856,8 @@
                         color: #FFFFFF !important; 
                     }
                     img, svg, picture { 
-                        max-width: 100vw !important; 
-                        max-height: 90vh !important; 
-                        object-fit: contain !important; 
+                        max-width: 100% !important; 
+                        height: auto !important; 
                         display: block !important; 
                         margin: 0 auto !important; 
                     }
