@@ -903,56 +903,56 @@
                 return currentBook.locations.generate(1000);
             }).catch(() => {});
 
-            // Display target page or explicitly start at spine index 0 (the absolute beginning/cover)
-            let displayPromise;
-            if (startPage && startPage !== 0) {
-                displayPromise = currentRendition.display(startPage);
-            } else if (currentBook.spine && currentBook.spine.get(0)) {
-                displayPromise = currentRendition.display(currentBook.spine.get(0).href);
-            } else {
-                displayPromise = currentRendition.display();
-            }
-
-            displayPromise.then(() => {
-                currentRendition.on("relocated", (location) => {
-                    const progressCfi = location.start.cfi;
-                    
-                    // Calculate percentage with fallback
-                    let percentage = 0;
-                    if (currentBook.locations && currentBook.locations.total > 0) {
-                        const pct = currentBook.locations.percentageFromCfi(progressCfi);
-                        if (!isNaN(pct)) {
-                            percentage = Math.round(pct * 100);
-                        }
-                    } else if (currentBook.spine && currentBook.spine.length > 0) {
-                        const currentSection = currentBook.spine.get(location.start.href);
-                        if (currentSection && currentSection.index !== undefined) {
-                            percentage = Math.round((currentSection.index / currentBook.spine.length) * 100);
-                        }
+            // FORCE START AT ABSOLUTE BEGINNING: If no saved bookmark exists, use spine[0] or cover URL
+            currentBook.loaded.navigation.then(async () => {
+                let targetLocation = startPage;
+                if (!targetLocation || targetLocation === 0) {
+                    if (currentBook.cover) {
+                        targetLocation = currentBook.cover;
+                    } else if (currentBook.spine && currentBook.spine.get(0)) {
+                        targetLocation = currentBook.spine.get(0).href;
                     }
+                }
+                return currentRendition.display(targetLocation);
+            }).catch(() => {
+                currentRendition.display(startPage || 0);
+            });
 
-                    if (location.atStart) percentage = 0;
-                    if (location.atEnd) percentage = 100;
-
-                    document.getElementById('reader-progress-text').textContent = `${percentage}%`;
-
-                    if (activeBookId && progressCfi) {
-                        clearTimeout(saveTimeout);
-                        saveTimeout = setTimeout(() => {
-                            fetch(`/api/customer/books/${activeBookId}/bookmark`, {
-                                method: 'POST',
-                                headers: { 
-                                    'Content-Type': 'application/json', 
-                                    'Authorization': `Bearer ${getToken()}` 
-                                },
-                                body: JSON.stringify({ page: progressCfi })
-                            }).catch(err => console.error("Auto-save page error:", err));
-                        }, 1000);
+            currentRendition.on("relocated", (location) => {
+                const progressCfi = location.start.cfi;
+                
+                // Calculate percentage with fallback
+                let percentage = 0;
+                if (currentBook.locations && currentBook.locations.total > 0) {
+                    const pct = currentBook.locations.percentageFromCfi(progressCfi);
+                    if (!isNaN(pct)) {
+                        percentage = Math.round(pct * 100);
                     }
-                });
-            }).catch(err => {
-                console.error("Error displaying book start page:", err);
-                currentRendition.display();
+                } else if (currentBook.spine && currentBook.spine.length > 0) {
+                    const currentSection = currentBook.spine.get(location.start.href);
+                    if (currentSection && currentSection.index !== undefined) {
+                        percentage = Math.round((currentSection.index / currentBook.spine.length) * 100);
+                    }
+                }
+
+                if (location.atStart) percentage = 0;
+                if (location.atEnd) percentage = 100;
+
+                document.getElementById('reader-progress-text').textContent = `${percentage}%`;
+
+                if (activeBookId && progressCfi) {
+                    clearTimeout(saveTimeout);
+                    saveTimeout = setTimeout(() => {
+                        fetch(`/api/customer/books/${activeBookId}/bookmark`, {
+                            method: 'POST',
+                            headers: { 
+                                'Content-Type': 'application/json', 
+                                'Authorization': `Bearer ${getToken()}` 
+                            },
+                            body: JSON.stringify({ page: progressCfi })
+                        }).catch(err => console.error("Auto-save page error:", err));
+                    }, 1000);
+                }
             });
         }
 
