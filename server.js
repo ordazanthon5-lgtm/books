@@ -201,7 +201,7 @@ function handlePasswordChange(req, res) {
         return res.status(403).json({ error: 'Access forbidden. Admins only.' });
     }
 
-    let identifier = req.body.userId || req.body.user_id || req.body.id || req.body.customer_id || req.body.username;
+    let identifier = req.body.userId || req.body.customerId || req.body.user_id || req.body.id || req.body.customer_id || req.body.username;
     let password = req.body.password || req.body.newPassword || req.body.new_password;
 
     if (!identifier || password === undefined || password === null || password === '') {
