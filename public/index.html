@@ -249,7 +249,7 @@
                 </div>
                 <!-- Description displays here inside popup -->
                 <p id="req-modal-desc" style="font-size: 0.85rem; color: #cbd5e1; max-height: 140px; overflow-y: auto; margin-bottom: 1.25rem; line-height: 1.4;"></p>
-                <button id="req-modal-btn" class="btn-success-green" onclick="submitBookRequest()">Get Book (15$)</button>
+                <button id="req-modal-btn" class="btn-success-green" onclick="submitBookRequest()">Add To Library</button>
             </div>
         </div>
 
@@ -506,7 +506,7 @@
             document.getElementById('req-modal-desc').textContent = selectedRequestBook.description;
 
             const reqBtn = document.getElementById('req-modal-btn');
-            reqBtn.textContent = 'Get Book (15$)';
+            reqBtn.textContent = 'Add To Library';
             reqBtn.disabled = false;
             reqBtn.style.background = '#28a745';
 
@@ -542,14 +542,14 @@
                     reqBtn.style.background = '#28a745'; // Green success state
                 } else {
                     alert(data.error || 'Failed to send request.');
-                    reqBtn.textContent = 'Get Book (15$)';
+                    reqBtn.textContent = 'Add To Library';
                     reqBtn.disabled = false;
                     reqBtn.style.background = '#28a745';
                 }
             } catch (err) {
                 console.error('Error submitting request:', err);
                 alert('Network error. Please try again.');
-                reqBtn.textContent = 'Get Book (15$)';
+                reqBtn.textContent = 'Add To Library';
                 reqBtn.disabled = false;
                 reqBtn.style.background = '#28a745';
             }
