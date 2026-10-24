@@ -319,10 +319,10 @@ app.post('/api/signup', async (req, res) => {
                 }
 
                 const newUserId = this.lastID;
-                const defaultBookTitle = "SAMPLE BOOK (Lover Her Wild)";
-                const defaultBookAuthor = "Atticus";
-                const defaultBookEpubUrl = "https://pub-937728d8eaaa44d38ec534532f9c4ca4.r2.dev/love%20her%20wild%20Real.epub";
-                const defaultBookCoverUrl = "https://d28hgpri8am2if.cloudfront.net/book_images/onix/cvr9781501171239/love-her-wild-9781501171239_hr.jpg";
+                const defaultBookTitle = "Sample(Pride and Prejudice)";
+                const defaultBookAuthor = "Jane Austen";
+                const defaultBookEpubUrl = "https://pub-937728d8eaaa44d38ec534532f9c4ca4.r2.dev/pride%20and%20prejudice.epub";
+                const defaultBookCoverUrl = "https://images.thenile.io/r1000/9781998621545.jpg";
 
                 db.run(
                     `INSERT INTO books (user_id, title, author, heyzine_url, cover_url) VALUES (?, ?, ?, ?, ?)`,
