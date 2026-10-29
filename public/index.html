@@ -428,7 +428,6 @@
                     </form>
                 </div>
             </div>
-
             <!-- CUSTOMER VIEW -->
             <div id="customer-view" class="hidden">
                 <div class="card" style="margin-bottom: 1.25rem;">
@@ -728,7 +727,6 @@
                 }, 500);
             });
         }
-
         function openBookRequestModal() {
             if (!selectedRequestBook) return;
             document.getElementById('req-modal-cover').src = selectedRequestBook.cover;
@@ -875,7 +873,6 @@
                     return;
                 }
 
-                // Strictly show only the top 5 readers
                 const topFive = data.slice(0, 5);
 
                 tbody.innerHTML = topFive.map((user, index) => {
@@ -902,13 +899,12 @@
                 tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #EF233C; padding: 2rem;">Network error loading leaderboard.</td></tr>`;
             }
         }
-        // --- READING BREAK CHESS MINI-GAME SCRIPT ---
+
         let chessGame = null;
         let chessBoard = null;
         let currentUserElo = 0;
         let isGameFinished = false;
 
-        // CLICK-TO-MOVE CHESS STATE VARIABLES
         let selectedSquare = null;
 
         function removeSquareHighlights() {
@@ -933,12 +929,11 @@
                 if (boardEl) boardEl.innerHTML = '';
 
                 chessBoard = Chessboard('chess-board', {
-                    draggable: false, // Click-to-move / Tap-to-move mode enabled
+                    draggable: false,
                     position: 'start',
                     pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png'
                 });
 
-                // Attach event handlers supporting both touch and mouse clicks for mobile/desktop reliability
                 $('#chess-board').off('click.chessboard touchstart.chessboard').on('click.chessboard touchstart.chessboard', '.square-55d63', function(e) {
                     e.preventDefault();
                     onSquareClick.call(this, e);
@@ -956,14 +951,11 @@
 
         function onSquareClick(e) {
             if (chessGame.game_over() || isGameFinished) return;
-
-            // Only allow moves when it's White's (User's) turn
             if (chessGame.turn() !== 'w') return;
 
             const targetSquare = $(this).attr('data-square');
             if (!targetSquare) return;
 
-            // If no square is selected yet, select a White piece
             if (selectedSquare === null) {
                 const piece = chessGame.get(targetSquare);
                 if (piece && piece.color === 'w') {
@@ -974,14 +966,12 @@
                 return;
             }
 
-            // If clicking the same square, deselect it
             if (selectedSquare === targetSquare) {
                 selectedSquare = null;
                 removeSquareHighlights();
                 return;
             }
 
-            // If clicking another of White's pieces, change selection
             const targetPiece = chessGame.get(targetSquare);
             if (targetPiece && targetPiece.color === 'w') {
                 selectedSquare = targetSquare;
@@ -990,17 +980,14 @@
                 return;
             }
 
-            // Attempt move from selectedSquare to targetSquare
             const move = chessGame.move({
                 from: selectedSquare,
                 to: targetSquare,
                 promotion: 'q'
             });
 
-            // Illegal move attempted
             if (move === null) return;
 
-            // Move succeeded
             selectedSquare = null;
             removeSquareHighlights();
             if (chessBoard) chessBoard.position(chessGame.fen());
@@ -1310,6 +1297,7 @@
                 loadAdminData();
             } else showAlert('admin-book-alert', data.error);
         });
+
         let loadedCustomerBooks = [];
         let swipeNoticeTimer = null;
 
@@ -1323,7 +1311,7 @@
             swipeNoticeTimer = setTimeout(() => {
                 noticeEl.style.opacity = '0';
                 setTimeout(() => { noticeEl.style.display = 'none'; }, 500);
-            }, 7000); // hides after 7 seconds
+            }, 7000);
         }
 
         async function loadCustomerBooks() {
@@ -1340,7 +1328,6 @@
             document.getElementById('library-section-title').textContent = 
                 currentLibraryTab === 'active' ? `Active Books (${filteredBooks.length})` : `Completed Books (${filteredBooks.length})`;
 
-            // Show or trigger swipe notice if active books tab and books exist
             if (currentLibraryTab === 'active' && filteredBooks.length > 1) {
                 triggerSwipeNotice();
             } else {
@@ -1501,19 +1488,27 @@
                 }
             }).catch(() => {});
 
-            currentBook.loaded.navigation.then(async () => {
-                let targetLocation = startPage;
-                if (!targetLocation || targetLocation === 0) {
-                    if (currentBook.cover) {
-                        targetLocation = currentBook.cover;
-                    } else if (currentBook.spine && currentBook.spine.get(0)) {
-                        targetLocation = currentBook.spine.get(0).href;
+            // FIXED: Directly display startPage (saved CFI) if available. 
+            // This prevents race conditions with fallback navigation that triggered the automatic page turn.
+            if (startPage && typeof startPage === 'string' && startPage.startsWith('epubcfi')) {
+                currentRendition.display(startPage).catch(() => {
+                    currentRendition.display(0);
+                });
+            } else {
+                currentBook.loaded.navigation.then(async () => {
+                    let targetLocation = startPage;
+                    if (!targetLocation || targetLocation === 0) {
+                        if (currentBook.cover) {
+                            targetLocation = currentBook.cover;
+                        } else if (currentBook.spine && currentBook.spine.get(0)) {
+                            targetLocation = currentBook.spine.get(0).href;
+                        }
                     }
-                }
-                return currentRendition.display(targetLocation);
-            }).catch(() => {
-                currentRendition.display(startPage || 0);
-            });
+                    return currentRendition.display(targetLocation);
+                }).catch(() => {
+                    currentRendition.display(startPage || 0);
+                });
+            }
 
             currentRendition.on("relocated", (location) => {
                 const progressCfi = location.start.cfi;
