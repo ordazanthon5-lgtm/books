@@ -1482,33 +1482,32 @@
             });
             currentRendition.themes.select("dark");
 
+            // Prevent layout shifts from triggering unwanted page turns on load
+            currentRendition.hooks.content.register((contents) => {
+                const el = contents.document.documentElement;
+                if (el) {
+                    el.style.background = "#000000";
+                    el.style.color = "#FFFFFF";
+                }
+            });
+
             currentBook.ready.then(() => {
                 if (currentBook.locations && typeof currentBook.locations.generate === 'function') {
                     currentBook.locations.generate(1000);
                 }
             }).catch(() => {});
 
-            // FIXED: Directly display startPage (saved CFI) if available. 
-            // This prevents race conditions with fallback navigation that triggered the automatic page turn.
-            if (startPage && typeof startPage === 'string' && startPage.startsWith('epubcfi')) {
-                currentRendition.display(startPage).catch(() => {
-                    currentRendition.display(0);
-                });
-            } else {
-                currentBook.loaded.navigation.then(async () => {
-                    let targetLocation = startPage;
-                    if (!targetLocation || targetLocation === 0) {
-                        if (currentBook.cover) {
-                            targetLocation = currentBook.cover;
-                        } else if (currentBook.spine && currentBook.spine.get(0)) {
-                            targetLocation = currentBook.spine.get(0).href;
-                        }
-                    }
-                    return currentRendition.display(targetLocation);
-                }).catch(() => {
-                    currentRendition.display(startPage || 0);
-                });
-            }
+            // Display target location cleanly without double triggering navigation chains
+            const target = (startPage && typeof startPage === 'string' && startPage.startsWith('epubcfi')) ? startPage : (startPage || 0);
+
+            currentRendition.display(target).then(() => {
+                if (target !== 0) {
+                    currentRendition.display(target);
+                }
+            }).catch((err) => {
+                console.error("Display error:", err);
+                currentRendition.display(0);
+            });
 
             currentRendition.on("relocated", (location) => {
                 const progressCfi = location.start.cfi;
