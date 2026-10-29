@@ -86,7 +86,7 @@ db.serialize(() => {
         author TEXT,
         heyzine_url TEXT,
         cover_url TEXT,
-        current_page INTEGER DEFAULT 1,
+        current_page TEXT DEFAULT '1',
         total_pages INTEGER DEFAULT 1,
         reading_percentage INTEGER DEFAULT 0,
         is_completed BOOLEAN DEFAULT 0,
@@ -94,7 +94,7 @@ db.serialize(() => {
     )`, () => {
         db.run(`ALTER TABLE books ADD COLUMN author TEXT`, (alterErr) => {});
         db.run(`ALTER TABLE books ADD COLUMN cover_url TEXT`, (alterErr) => {});
-        db.run(`ALTER TABLE books ADD COLUMN current_page INTEGER DEFAULT 1`, (alterErr) => {});
+        db.run(`ALTER TABLE books ADD COLUMN current_page TEXT DEFAULT '1'`, (alterErr) => {});
         db.run(`ALTER TABLE books ADD COLUMN total_pages INTEGER DEFAULT 1`, (alterErr) => {});
         db.run(`ALTER TABLE books ADD COLUMN reading_percentage INTEGER DEFAULT 0`, (alterErr) => {});
         db.run(`ALTER TABLE books ADD COLUMN is_completed BOOLEAN DEFAULT 0`, (alterErr) => {});
@@ -185,7 +185,6 @@ function handleLogin(req, res) {
                     return res.status(500).json({ error: 'Database error recording session.' });
                 }
 
-                // Updated to enforce a strict 1-device active limit
                 db.all(`SELECT id FROM sessions WHERE user_id = ? ORDER BY created_at DESC`, [user.id], (selErr, rows) => {
                     if (!selErr && rows && rows.length > 1) {
                         const oldSessionIds = rows.slice(1).map(r => r.id);
@@ -282,7 +281,7 @@ app.get('/api/chess/leaderboard', verifyToken, (req, res) => {
 
 app.post('/api/chess/game-over', verifyToken, (req, res) => {
     const userId = req.user.id;
-    const { result } = req.body; // 1 for win, 0.5 for draw, 0 for loss
+    const { result } = req.body;
 
     if (result === undefined || result === null) {
         return res.status(400).json({ error: 'Result is required.' });
@@ -299,7 +298,7 @@ app.post('/api/chess/game-over', verifyToken, (req, res) => {
 
         const expectedScore = 1 / (1 + Math.pow(10, (BOT_ELO - currentElo) / 400));
         const eloDiff = Math.round(K * (result - expectedScore));
-        const newElo = currentElo + eloDiff; // Allows dropping into negative numbers
+        const newElo = currentElo + eloDiff;
 
         db.run(`UPDATE users SET chess_elo = ? WHERE id = ?`, [newElo, userId], (updateErr) => {
             if (updateErr) {
@@ -561,17 +560,17 @@ app.post('/api/customer/books/:id/bookmark', verifyToken, (req, res) => {
     const bookId = req.params.id;
     const { page, percentage, currentPage, totalPages } = req.body;
     if (!page) {
-        return res.status(400).json({ error: 'Page number is required.' });
+        return res.status(400).json({ error: 'Page location is required.' });
     }
 
     const prog = percentage !== undefined ? percentage : 0;
-    const curPageNum = currentPage !== undefined && !isNaN(currentPage) ? currentPage : 1;
+    const curPageVal = page; // Store exact CFI string to avoid index offset bugs
     const totPageNum = totalPages !== undefined && !isNaN(totalPages) ? totalPages : 1;
 
     const isCompletedVal = prog >= 100 ? 1 : undefined;
 
     let query = `UPDATE books SET current_page = ?, total_pages = ?, reading_percentage = ?`;
-    let params = [curPageNum, totPageNum, prog];
+    let params = [curPageVal, totPageNum, prog];
 
     if (isCompletedVal === 1) {
         query += `, is_completed = 1`;
@@ -610,7 +609,7 @@ app.post('/api/customer/books/:id/restart', verifyToken, (req, res) => {
     }
     const bookId = req.params.id;
 
-    const query = `UPDATE books SET is_completed = 0, reading_percentage = 0, current_page = 1 WHERE id = ? AND user_id = ?`;
+    const query = `UPDATE books SET is_completed = 0, reading_percentage = 0, current_page = '1' WHERE id = ? AND user_id = ?`;
     db.run(query, [bookId, req.user.id], function(err) {
         if (err || this.changes === 0) {
             return res.status(404).json({ error: 'Book not found or database error.' });
