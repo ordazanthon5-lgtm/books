@@ -141,6 +141,22 @@
         .horizontal-swipe-container::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); border-radius: 10px; }
         .horizontal-swipe-container::-webkit-scrollbar-thumb { background: #EF233C; border-radius: 10px; }
 
+        /* SWIPE NOTICE BANNER */
+        .swipe-notice-banner {
+            background: rgba(239, 35, 60, 0.15);
+            border: 1px solid rgba(239, 35, 60, 0.3);
+            color: #FFFFFF;
+            padding: 0.6rem 1rem;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+            transition: opacity 0.5s ease;
+        }
+
         .swipe-item-active { flex: 0 0 100%; scroll-snap-align: start; }
 
         .user-list { display: flex; flex-direction: column; gap: 0.5rem; }
@@ -228,7 +244,7 @@
 
         /* READING BREAK CHESS STYLES (BLACK & WHITE THEME) */
         .chess-container { display: flex; flex-direction: column; align-items: center; gap: 1.25rem; width: 100%; }
-        .chess-board-box { width: 380px; height: 380px; max-width: 100%; border-radius: 12px; overflow: hidden; border: 2px solid rgba(255, 255, 255, 0.15); box-shadow: 0 10px 30px rgba(0,0,0,0.8); background: #1E293B; cursor: pointer; }
+        .chess-board-box { width: 380px; height: 380px; max-width: 100%; border-radius: 12px; overflow: hidden; border: 2px solid rgba(255, 255, 255, 0.15); box-shadow: 0 10px 30px rgba(0,0,0,0.8); background: #1E293B; cursor: pointer; touch-action: manipulation; }
         .chess-status-bar { width: 100%; max-width: 380px; background: #0A0F1D; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 0.75rem 1rem; display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; font-weight: 700; }
 
         /* Custom Black & White Chess Board Theme overrides */
@@ -435,7 +451,10 @@
 
                 <!-- SEAMLESSLY BLENDED LIBRARY BOOKS SECTION -->
                 <div id="library-books-section" class="library-seamless-card">
-                    <h2 id="library-section-title" style="margin-bottom: 1rem;">Active Books (1)</h2>
+                    <h2 id="library-section-title" style="margin-bottom: 0.5rem;">Active Books (1)</h2>
+                    <div id="library-swipe-notice" class="swipe-notice-banner">
+                        👈 <span>Swipe right or left to view more books in your library</span>
+                    </div>
                     <div id="customer-books-grid" class="horizontal-swipe-container"></div>
                 </div>
 
@@ -447,7 +466,7 @@
                     <div class="leaderboards-side-grid">
                         <!-- Book Reader Leaderboard -->
                         <div class="card" style="margin-bottom: 0;">
-                            <h3 style="font-size: 1.05rem; color: #FFFFFF; margin-bottom: 0.75rem;">📖 Book Reader Rankings</h3>
+                            <h3 style="font-size: 1.05rem; color: #FFFFFF; margin-bottom: 0.75rem;">📖 Top 5 Readers</h3>
                             <div class="leaderboard-scroll-box">
                                 <table class="leaderboard-table">
                                     <thead>
@@ -532,7 +551,7 @@
                 <!-- READING BREAK CHESS SECTION -->
                 <div id="chess-section" class="library-seamless-card hidden">
                     <h2 style="margin-bottom: 0.4rem;">♟️ Reading Break Chess Mini-Game</h2>
-                    <p style="color: #94a3b8; font-size: 0.9rem; margin-bottom: 1.25rem;">Click a piece to select and highlight it, then click the square where you want it to go!</p>
+                    <p style="color: #94a3b8; font-size: 0.9rem; margin-bottom: 1.25rem;">Tap a piece to select it, then tap the square where you want it to go!</p>
                     
                     <div class="chess-container">
                         <!-- Two Custom Difficulty Levels Selector -->
@@ -856,7 +875,10 @@
                     return;
                 }
 
-                tbody.innerHTML = data.map((user, index) => {
+                // Strictly show only the top 5 readers
+                const topFive = data.slice(0, 5);
+
+                tbody.innerHTML = topFive.map((user, index) => {
                     const rank = index + 1;
                     const count = user.completed_count || 0;
                     const badge = getRankBadge(count);
@@ -895,7 +917,6 @@
 
         function highlightSquare(square) {
             const $square = $('#chess-board .square-' + square);
-            // Highlight the selected square with a distinct glowing border and background tint
             $square.css({
                 'background-color': 'rgba(239, 35, 60, 0.4) !important',
                 'box-shadow': 'inset 0 0 10px #EF233C'
@@ -912,13 +933,16 @@
                 if (boardEl) boardEl.innerHTML = '';
 
                 chessBoard = Chessboard('chess-board', {
-                    draggable: false, // Click-to-move mode enabled
+                    draggable: false, // Click-to-move / Tap-to-move mode enabled
                     position: 'start',
                     pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png'
                 });
 
-                // Attach click handler to squares for click-to-move interaction
-                $('#chess-board').on('click', '.square-55d63', onSquareClick);
+                // Attach event handlers supporting both touch and mouse clicks for mobile/desktop reliability
+                $('#chess-board').off('click.chessboard touchstart.chessboard').on('click.chessboard touchstart.chessboard', '.square-55d63', function(e) {
+                    e.preventDefault();
+                    onSquareClick.call(this, e);
+                });
 
                 updateChessGameStatus();
             }, 100);
@@ -937,6 +961,7 @@
             if (chessGame.turn() !== 'w') return;
 
             const targetSquare = $(this).attr('data-square');
+            if (!targetSquare) return;
 
             // If no square is selected yet, select a White piece
             if (selectedSquare === null) {
@@ -997,18 +1022,14 @@
             if (moves.length === 0) return;
 
             const mode = document.getElementById('chess-difficulty').value;
-            
-            // Casual mode: 10% blunder rate, Ranked mode: 3% blunder rate
             let blunderChance = mode === 'casual' ? 0.10 : 0.03;
 
             let chosenMove;
 
-            // 1. Handle Blunder Chance
             if (Math.random() < blunderChance) {
                 const randomMove = moves[Math.floor(Math.random() * moves.length)];
                 chosenMove = randomMove.san;
             } else {
-                // 2. Checkmate Prioritization
                 let checkmateMove = moves.find(m => {
                     chessGame.move(m);
                     const isMate = chessGame.in_checkmate();
@@ -1019,9 +1040,7 @@
                 if (checkmateMove) {
                     chosenMove = checkmateMove.san;
                 } else {
-                    // 3. Prioritize Checks or Captures
                     const prioritizedMoves = moves.filter(m => m.captured || m.san.includes('+'));
-                    
                     let captureChance = mode === 'casual' ? 0.3 : 0.85;
                     if (prioritizedMoves.length > 0 && Math.random() < captureChance) {
                         const selected = prioritizedMoves[Math.floor(Math.random() * prioritizedMoves.length)];
@@ -1049,7 +1068,6 @@
                 statusEl.textContent = `Checkmate! ${winner} wins.`;
                 if (!isGameFinished) {
                     isGameFinished = true;
-                    // Only send game result if playing in Ranked mode
                     if (mode === 'ranked') {
                         handleChessGameOver(chessGame.turn() === 'b' ? 1 : 0);
                     } else {
@@ -1187,7 +1205,6 @@
             const eloDisp = document.getElementById('chess-user-elo-display');
             if (eloDisp) eloDisp.textContent = `Your Elo: ${currentUserElo}`;
 
-            // Render customer badge & rank pill on nav bar if customer
             const navBadgeContainer = document.getElementById('nav-badge-container');
             if (user.role === 'customer') {
                 const badgeTitle = getRankBadge(user.completed_count || 0);
@@ -1295,6 +1312,20 @@
         });
 
         let loadedCustomerBooks = [];
+        let swipeNoticeTimer = null;
+
+        function triggerSwipeNotice() {
+            const noticeEl = document.getElementById('library-swipe-notice');
+            if (!noticeEl) return;
+            noticeEl.style.display = 'flex';
+            noticeEl.style.opacity = '1';
+
+            clearTimeout(swipeNoticeTimer);
+            swipeNoticeTimer = setTimeout(() => {
+                noticeEl.style.opacity = '0';
+                setTimeout(() => { noticeEl.style.display = 'none'; }, 500);
+            }, 30000); // hides after 30 seconds
+        }
 
         async function loadCustomerBooks() {
             const res = await fetch('/api/customer/books', { headers: { 'Authorization': `Bearer ${getToken()}` } });
@@ -1309,6 +1340,14 @@
 
             document.getElementById('library-section-title').textContent = 
                 currentLibraryTab === 'active' ? `Active Books (${filteredBooks.length})` : `Completed Books (${filteredBooks.length})`;
+
+            // Show or trigger swipe notice if active books tab and books exist
+            if (currentLibraryTab === 'active' && filteredBooks.length > 1) {
+                triggerSwipeNotice();
+            } else {
+                const noticeEl = document.getElementById('library-swipe-notice');
+                if (noticeEl) noticeEl.style.display = 'none';
+            }
 
             if (!filteredBooks.length) {
                 grid.innerHTML = `<p style="color:#94a3b8; padding: 0.5rem 0;">No ${currentLibraryTab === 'active' ? 'active' : 'completed'} books in your library.</p>`;
