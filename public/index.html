@@ -1310,7 +1310,6 @@
                 loadAdminData();
             } else showAlert('admin-book-alert', data.error);
         });
-
         let loadedCustomerBooks = [];
         let swipeNoticeTimer = null;
 
@@ -1324,7 +1323,7 @@
             swipeNoticeTimer = setTimeout(() => {
                 noticeEl.style.opacity = '0';
                 setTimeout(() => { noticeEl.style.display = 'none'; }, 500);
-            }, 30000); // hides after 30 seconds
+            }, 7000); // hides after 7 seconds
         }
 
         async function loadCustomerBooks() {
