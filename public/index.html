@@ -1403,7 +1403,7 @@
                         headers: { 'Authorization': `Bearer ${getToken()}` }
                     });
                     if (res.ok) {
-                        openReader(bookId, url, title, author, 0);
+                        openReader(bookId, url, title, author, 1);
                     } else {
                         alert('Failed to restart book.');
                     }
@@ -1411,9 +1411,8 @@
                     console.error('Restart book error:', err);
                 }
             } else {
-                // Pass the exact saved CFI string stored in current_page (or fallback)
-                const startCfi = (book.current_page && typeof book.current_page === 'string' && book.current_page.startsWith('epubcfi')) ? book.current_page : null;
-                openReader(bookId, url, title, author, startCfi);
+                const startPageNum = (book.current_page !== undefined && book.current_page !== null && !isNaN(book.current_page)) ? book.current_page : 1;
+                openReader(bookId, url, title, author, startPageNum);
             }
         }
 
@@ -1439,7 +1438,7 @@
         let tipTimeout = null;
         let isRelocating = false;
 
-        function openReader(bookId, url, title, author, startCfi) {
+        function openReader(bookId, url, title, author, startPageNum) {
             activeBookId = bookId;
             document.body.classList.add('reader-mode');
             document.getElementById('customer-view').classList.add('hidden');
@@ -1492,20 +1491,24 @@
                 }
             }).catch(() => {});
 
-            // Display exact saved CFI without boundary drift
-            const displayTarget = (startCfi && typeof startCfi === 'string' && startCfi.startsWith('epubcfi')) ? startCfi : 0;
+            let displayTarget = 0;
+            if (startPageNum && startPageNum > 1) {
+                const bookRecord = loadedCustomerBooks.find(b => b.id === bookId);
+                const total = bookRecord && bookRecord.total_pages ? bookRecord.total_pages : 100;
+                displayTarget = Math.min(1, Math.max(0, (startPageNum - 1) / total));
+            }
 
             currentRendition.display(displayTarget).then(() => {
-                setTimeout(() => { isRelocating = false; }, 300);
+                setTimeout(() => { isRelocating = false; }, 400);
             }).catch((err) => {
                 console.error("Display error:", err);
                 currentRendition.display(0).then(() => {
-                    setTimeout(() => { isRelocating = false; }, 300);
+                    setTimeout(() => { isRelocating = false; }, 400);
                 });
             });
 
             currentRendition.on("relocated", (location) => {
-                if (isRelocating) return; // Prevent initial render shift triggers
+                if (isRelocating) return;
 
                 const progressCfi = location.start.cfi;
                 
@@ -1537,7 +1540,6 @@
                 const pageText = totalPagesNum > 0 ? `Page ${currentPageNum} of ${totalPagesNum} (${percentage}%)` : `${percentage}%`;
                 document.getElementById('reader-progress-text').textContent = pageText;
 
-                // Send the exact CFI string to current_page column
                 if (activeBookId && progressCfi) {
                     clearTimeout(saveTimeout);
                     saveTimeout = setTimeout(() => {
