@@ -1352,11 +1352,6 @@
                 percentage = parseInt(percentage, 10) || 0;
                 if (isCompleted) percentage = 100;
 
-                const pageNum = (b.current_page !== undefined && b.current_page !== null && !isNaN(b.current_page)) ? b.current_page : 1;
-                const totalNum = (b.total_pages !== undefined && b.total_pages !== null && !isNaN(b.total_pages) && b.total_pages > 0) ? b.total_pages : 1;
-                
-                const pageDisplay = isCompleted ? 'Finished' : `Page ${pageNum} / ${totalNum}`;
-
                 return `
                     <div class="active-book-card-featured swipe-item-active">
                         <div class="active-book-cover-wrap">
@@ -1367,11 +1362,7 @@
                             <h3 class="active-book-title">${title}</h3>
                             <p class="active-book-author">${author}</p>
                             
-                            <div class="active-book-stats-row">
-                                <div class="stat-badge">📖 ${pageDisplay}</div>
-                            </div>
-                            
-                            <div class="progress-bar-container">
+                            <div class="progress-bar-container" style="margin-top: 0.5rem;">
                                 <div class="progress-bar-fill" style="width: ${percentage}%;"></div>
                             </div>
                             <div style="display: flex; justify-content: flex-end; font-size: 0.8rem; color: #94a3b8; font-weight: 700; margin-bottom: 0.75rem;">${percentage}%</div>
