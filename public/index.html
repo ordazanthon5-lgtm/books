@@ -7,150 +7,237 @@
     <!-- JSZip and Epub.js CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/epubjs/dist/epub.min.js"></script>
+    <!-- jQuery (Required for Chessboard.js) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <!-- Chess Libraries CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+    <script src="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css">
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', -apple-system, sans-serif; }
-        body { background: #000000; color: #FFFFFF; min-height: 100vh; display: flex; flex-direction: column; overflow-x: hidden; }
+        
+        /* SOLID DARK BACKGROUND WITH SUBTLE STARS */
+        body { 
+            background-color: #0A0F1D;
+            background-image: 
+                radial-gradient(1px 1px at 10% 15%, rgba(255, 255, 255, 0.4) 100%, transparent),
+                radial-gradient(1px 1px at 25% 45%, rgba(255, 255, 255, 0.3) 100%, transparent),
+                radial-gradient(1px 1px at 40% 70%, rgba(255, 255, 255, 0.5) 100%, transparent),
+                radial-gradient(1.5px 1.5px at 55% 20%, rgba(255, 255, 255, 0.6) 100%, transparent),
+                radial-gradient(1px 1px at 70% 85%, rgba(255, 255, 255, 0.3) 100%, transparent),
+                radial-gradient(1px 1px at 85% 35%, rgba(255, 255, 255, 0.4) 100%, transparent),
+                radial-gradient(1.5px 1.5px at 92% 65%, rgba(255, 255, 255, 0.5) 100%, transparent),
+                radial-gradient(1px 1px at 15% 90%, rgba(255, 255, 255, 0.3) 100%, transparent),
+                radial-gradient(1px 1px at 60% 50%, rgba(255, 255, 255, 0.2) 100%, transparent);
+            background-size: 550px 550px;
+            background-attachment: fixed;
+            color: #FFFFFF; 
+            min-height: 100vh; 
+            display: flex; 
+            flex-direction: column; 
+            overflow-x: hidden; 
+        }
         body.reader-mode { background: #000000 !important; overflow: hidden !important; }
 
         /* Navigation Header */
-        header { background: #0D1B2A; padding: 0.75rem 1.5rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1B263B; gap: 1rem; flex-shrink: 0; }
-        .logo-container { display: flex; align-items: center; gap: 0.65rem; text-decoration: none; }
-        .logo-icon-box { width: 45px; height: 45px; border-radius: 10px; background: #1B263B; display: flex; align-items: center; justify-content: center; border: 1px solid #27374D; font-size: 1.25rem; }
+        header { background: rgba(10, 15, 29, 0.95); backdrop-filter: blur(10px); padding: 1rem 1.5rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255, 255, 255, 0.05); gap: 1rem; flex-shrink: 0; }
+        .logo-container { display: flex; align-items: center; gap: 0.75rem; text-decoration: none; }
+        .logo-icon-box { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #ef233c 0%, #d90429 100%); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 15px rgba(239, 35, 60, 0.5); border: 2px solid rgba(255, 255, 255, 0.2); font-size: 1.2rem; }
         .logo-text-group { display: flex; flex-direction: column; }
         .logo { font-size: 1.35rem; font-weight: 800; color: #FFFFFF; line-height: 1.1; letter-spacing: -0.5px; }
         .logo span.accent { color: #EF233C; }
-        .logo-subtitle { font-size: 9px; text-transform: uppercase; letter-spacing: 1.2px; color: #94a3b8; font-weight: 700; margin-top: 1px; }
+        .logo-subtitle { font-size: 8px; text-transform: uppercase; letter-spacing: 1.2px; color: #94a3b8; font-weight: 700; margin-top: 2px; }
 
-        .user-info { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; color: #FFFFFF; font-size: 0.9rem; }
-        button.btn-logout { background: #1B263B; color: #EF233C; border: 1px solid #EF233C; padding: 0.4rem 0.8rem; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.85rem; transition: background 0.2s; }
-        button.btn-logout:hover { background: #EF233C; color: #FFFFFF; }
+        .user-info { display: flex; align-items: center; gap: 1rem; color: #FFFFFF; font-size: 0.9rem; font-weight: 700; flex-wrap: wrap; }
+        .nav-badge-pill { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.3rem 0.75rem; border-radius: 50px; font-size: 0.8rem; font-weight: 700; background: rgba(239, 35, 60, 0.15); color: #EF233C; border: 1px solid rgba(239, 35, 60, 0.3); }
+        button.btn-logout { background: transparent; color: #EF233C; border: none; padding: 0; cursor: pointer; font-weight: 600; font-size: 0.85rem; transition: opacity 0.2s; }
+        button.btn-logout:hover { opacity: 0.8; }
 
         /* Main Container */
         main { flex: 1; display: flex; flex-direction: column; width: 100%; min-height: 0; position: relative; }
         
-        .card { background: #0D1B2A; border-radius: 16px; padding: 2rem; margin-bottom: 1.5rem; border: 1px solid #1B263B; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.5); }
-        h2 { margin-bottom: 1.2rem; font-size: 1.3rem; font-weight: 700; color: #FFFFFF; }
-        .form-group { margin-bottom: 1.2rem; }
-        label { display: block; margin-bottom: 0.4rem; font-size: 0.85rem; color: #cbd5e1; font-weight: 600; }
-        input, select { width: 100%; padding: 0.75rem 1rem; border-radius: 10px; border: 1px solid #1B263B; background: #000000; color: #FFFFFF; font-size: 0.95rem; }
-        input:focus, select:focus { outline: none; border-color: #EF233C; box-shadow: 0 0 0 3px rgba(239, 35, 60, 0.2); background: #000000; }
+        .card { background: #0F172A; border-radius: 20px; padding: 1.5rem; margin-bottom: 1.25rem; border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: 0 10px 30px rgba(0,0,0,0.6); }
         
-        /* MODERN DASHBOARD SEARCH BAR STYLING */
-        .modern-search-wrapper { position: relative; width: 100%; }
-        .modern-search-input-box { width: 100%; padding: 0.9rem 1rem 0.9rem 2.8rem; border-radius: 14px; border: 1px solid #27374D; background: #000000; color: #FFFFFF; font-size: 0.95rem; transition: all 0.3s ease; box-shadow: inset 0 2px 4px rgba(0,0,0,0.6); }
+        /* SEAMLESS LIBRARY & LEADERBOARD SECTIONS */
+        .library-seamless-card { background: transparent !important; border: none !important; box-shadow: none !important; padding: 0 0 1.5rem 0 !important; margin-bottom: 1.25rem; }
+
+        h2 { margin-bottom: 0.75rem; font-size: 1.2rem; font-weight: 700; color: #FFFFFF; display: flex; align-items: center; gap: 0.5rem; }
+        .form-group { margin-bottom: 1.15rem; }
+        label { display: block; margin-bottom: 0.4rem; font-size: 0.85rem; color: #FFFFFF; font-weight: 600; }
+        input, select { width: 100%; padding: 0.85rem 1rem; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.1); background: #0A0F1D; color: #FFFFFF; font-size: 0.95rem; }
+        input:focus, select:focus { outline: none; border-color: #EF233C; box-shadow: 0 0 0 3px rgba(239, 35, 60, 0.2); background: #0A0F1D; }
+        
+        /* MODERN SEARCH BAR */
+        .modern-search-wrapper { position: relative; width: 100%; margin-top: 0.5rem; }
+        .modern-search-input-box { width: 100%; padding: 0.9rem 2.8rem 0.9rem 2.8rem; border-radius: 14px; border: 1px solid rgba(255, 255, 255, 0.1); background: #0A0F1D; color: #FFFFFF; font-size: 0.95rem; transition: all 0.3s ease; box-shadow: inset 0 2px 4px rgba(0,0,0,0.6); }
         .modern-search-input-box:focus { outline: none; border-color: #EF233C; box-shadow: 0 0 0 4px rgba(239, 35, 60, 0.25), inset 0 2px 4px rgba(0,0,0,0.6); }
         .modern-search-icon { position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); font-size: 1.1rem; color: #94a3b8; pointer-events: none; }
+        .input-sparkle-icon { position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); font-size: 1.1rem; pointer-events: none; color: #EF233C; }
         
-        .modern-search-dropdown { display: none; position: absolute; top: calc(100% + 8px); left: 0; right: 0; background-color: #080f18; border: 1px solid #27374D; border-radius: 12px; max-height: 280px; overflow-y: auto; z-index: 1000; box-shadow: 0 12px 30px rgba(0,0,0,0.7); backdrop-filter: blur(10px); }
-        .modern-search-dropdown-item { padding: 12px 16px; cursor: pointer; border-bottom: 1px solid #1B263B; color: #FFFFFF; font-size: 0.9rem; transition: background 0.15s ease; display: flex; flex-direction: column; gap: 2px; }
+        .modern-search-dropdown { display: none; position: absolute; top: calc(100% + 8px); left: 0; right: 0; background-color: #0F172A; border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 12px; max-height: 280px; overflow-y: auto; z-index: 1000; box-shadow: 0 12px 30px rgba(0,0,0,0.7); backdrop-filter: blur(10px); }
+        .modern-search-dropdown-item { padding: 12px 16px; cursor: pointer; border-bottom: 1px solid rgba(255, 255, 255, 0.05); color: #FFFFFF; font-size: 0.9rem; transition: background 0.15s ease; display: flex; flex-direction: column; gap: 2px; }
         .modern-search-dropdown-item:last-child { border-bottom: none; }
-        .modern-search-dropdown-item:hover { background: #132238; border-left: 3px solid #EF233C; padding-left: 14px; }
+        .modern-search-dropdown-item:hover { background: #1E293B; border-left: 3px solid #EF233C; padding-left: 14px; }
 
-        button.btn-primary { background: #EF233C; color: #FFFFFF; border: none; padding: 0.8rem 1.5rem; border-radius: 10px; cursor: pointer; font-weight: 600; width: 100%; font-size: 0.95rem; box-shadow: 0 4px 12px rgba(239, 35, 60, 0.3); transition: background 0.2s; }
+        button.btn-primary { background: #EF233C; color: #FFFFFF; border: none; padding: 0.9rem 1.5rem; border-radius: 14px; cursor: pointer; font-weight: 700; width: 100%; font-size: 1rem; box-shadow: 0 6px 20px rgba(239, 35, 60, 0.4); transition: background 0.2s; }
         button.btn-primary:hover { background: #d90429; }
 
-        /* Green Request Button Style */
-        button.btn-success-green { background: #28a745; color: #FFFFFF; border: none; padding: 0.8rem 1.5rem; border-radius: 10px; cursor: pointer; font-weight: 600; width: 100%; font-size: 0.95rem; box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3); transition: background 0.2s; }
+        button.btn-secondary-dark { background: #0F172A; color: #FFFFFF; border: 1px solid rgba(255, 255, 255, 0.12); padding: 0.9rem 1.5rem; border-radius: 14px; cursor: pointer; font-weight: 700; width: 100%; font-size: 1rem; margin-top: 0.75rem; transition: background 0.2s, border-color 0.2s; }
+        button.btn-secondary-dark:hover { background: #1E293B; border-color: rgba(255, 255, 255, 0.3); }
+
+        button.btn-success-green { background: #28a745; color: #FFFFFF; border: none; padding: 0.9rem 1.5rem; border-radius: 14px; cursor: pointer; font-weight: 700; width: 100%; font-size: 1rem; box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3); transition: background 0.2s; }
         button.btn-success-green:hover { background: #218838; }
         
-        .btn-whatsapp { background: #1B263B; color: #FFFFFF; border: 1px solid #27374D; padding: 0.8rem 1.5rem; border-radius: 10px; cursor: pointer; font-weight: 600; width: 100%; font-size: 0.95rem; margin-top: 0.75rem; text-align: center; display: inline-block; text-decoration: none; transition: background 0.2s; }
-        .btn-whatsapp:hover { background: #0D1B2A; border-color: #EF233C; }
-        
         /* Floating WhatsApp Action Button */
-        .fab-whatsapp { position: fixed; bottom: 2rem; right: 2rem; background: #EF233C; color: #FFFFFF; padding: 0.75rem 1.25rem; border-radius: 50px; display: flex; align-items: center; gap: 0.5rem; box-shadow: 0 6px 20px rgba(239, 35, 60, 0.4); cursor: pointer; z-index: 1000; text-decoration: none; font-weight: 600; font-size: 0.9rem; transition: transform 0.2s; }
+        .fab-whatsapp { position: fixed; bottom: 2rem; right: 2rem; background: #EF233C; color: #FFFFFF; padding: 0.85rem 1.5rem; border-radius: 50px; display: flex; align-items: center; gap: 0.6rem; box-shadow: 0 8px 25px rgba(239, 35, 60, 0.5); cursor: pointer; z-index: 1000; text-decoration: none; font-weight: 700; font-size: 0.95rem; transition: transform 0.2s; border: 1px solid rgba(255, 255, 255, 0.2); }
         .fab-whatsapp:hover { transform: scale(1.05); }
         .fab-whatsapp svg { width: 20px; height: 20px; fill: white; flex-shrink: 0; }
 
         /* POPUP MODAL STYLES */
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); display: flex; align-items: center; justify-content: center; z-index: 2000; padding: 1rem; }
-        .modal-card { background: #0D1B2A; border-radius: 20px; padding: 2rem; width: 100%; max-width: 420px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); border: 1px solid #1B263B; position: relative; }
-        .modal-close { position: absolute; top: 1.25rem; right: 1.25rem; background: none; border: none; font-size: 1.3rem; color: #FFFFFF; cursor: pointer; }
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); display: flex; align-items: center; justify-content: center; z-index: 2000; padding: 1rem; backdrop-filter: blur(5px); }
+        .modal-card { background: #0F172A; border-radius: 24px; padding: 2rem; width: 100%; max-width: 420px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7); border: 1px solid rgba(255, 255, 255, 0.1); position: relative; }
+        .modal-close { position: absolute; top: 1.25rem; right: 1.25rem; background: none; border: none; font-size: 1.4rem; color: #FFFFFF; cursor: pointer; }
 
         .hidden { display: none !important; }
 
-        /* SPLIT-SCREEN LOGIN */
-        .split-login-container { display: flex; flex: 1; width: 100%; min-height: 100vh; }
-        .login-hero { flex: 1; background: #0D1B2A; color: #FFFFFF; padding: 4rem; display: flex; flex-direction: column; justify-content: space-between; border-right: 1px solid #1B263B; }
-        .hero-content { max-width: 450px; margin: auto 0; }
-        .hero-title { font-size: 3.5rem; font-weight: 800; line-height: 1.1; margin-bottom: 1.25rem; letter-spacing: -1px; color: #FFFFFF; }
-        .hero-desc { color: #94a3b8; font-size: 1.1rem; line-height: 1.5; }
-        
-        .login-form-panel { flex: 1; background: #000000; display: flex; align-items: center; justify-content: center; padding: 3rem 2rem; }
-        .login-card-light { width: 100%; max-width: 400px; background: #0D1B2A; padding: 2rem; border-radius: 16px; border: 1px solid #1B263B; }
+        /* MOBILE LOGIN CONTAINER */
+        .mobile-login-container { 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            width: 100%; 
+            max-width: 440px; 
+            margin: 0 auto; 
+            padding: 2.5rem 1rem 3rem 1rem; 
+        }
+        .mobile-hero-header { display: flex; flex-direction: column; align-items: center; text-align: center; margin-bottom: 2rem; width: 100%; }
+        .mobile-logo-ring { width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 1rem; position: relative; }
+        .mobile-logo-circle { width: 64px; height: 64px; border-radius: 50%; background: linear-gradient(135deg, #ef233c 0%, #d90429 100%); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 25px rgba(239, 35, 60, 0.7); border: 2px solid rgba(255, 255, 255, 0.3); font-size: 1.7rem; }
+        .mobile-brand-title { font-size: 1.8rem; font-weight: 800; color: #FFFFFF; letter-spacing: -0.5px; line-height: 1.1; }
+        .mobile-brand-subtitle { font-size: 9px; text-transform: uppercase; letter-spacing: 2px; color: #94a3b8; font-weight: 700; margin-top: 4px; }
+
+        .mobile-login-card { width: 100%; background: #0F172A; border-radius: 28px; padding: 2.25rem 1.75rem; border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: 0 20px 40px rgba(0,0,0,0.7); }
 
         /* DASHBOARDS & TABS */
-        .dashboard-main { max-width: 1000px; margin: 0 auto; width: 100%; padding: 2rem; }
-        .library-tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; border-bottom: 1px solid #1B263B; padding-bottom: 1rem; flex-wrap: wrap; }
-        .tab-btn { background: #0D1B2A; color: #cbd5e1; border: 1px solid #1B263B; padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: all 0.2s; }
-        .tab-btn:hover { background: #1B263B; color: #FFFFFF; }
-        .tab-btn.active { background: #EF233C; color: #FFFFFF; border-color: #EF233C; }
-
-        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1.25rem; }
-        .user-list { display: flex; flex-direction: column; gap: 0.5rem; }
-        .user-item { display: flex; justify-content: space-between; align-items: center; background: #000000; padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid #1B263B; }
+        .dashboard-main { max-width: 1100px; margin: 0 auto; width: 100%; padding: 1.5rem; }
         
-        .btn-delete { background: #1B263B; color: #EF233C; border: 1px solid #EF233C; padding: 0.4rem 0.8rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 600; }
+        .library-tabs { display: flex; gap: 0.6rem; margin-bottom: 1.25rem; overflow-x: auto; padding-bottom: 0.25rem; }
+        .tab-btn { background: #0F172A; color: #94a3b8; border: 1px solid rgba(255, 255, 255, 0.08); padding: 0.75rem 1.15rem; border-radius: 14px; cursor: pointer; font-weight: 700; font-size: 0.9rem; white-space: nowrap; transition: all 0.2s; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+        .tab-btn:hover { background: #1E293B; color: #FFFFFF; }
+        .tab-btn.active { background: #EF233C; color: #FFFFFF; border-color: #EF233C; box-shadow: 0 6px 18px rgba(239, 35, 60, 0.4); }
+
+        /* HORIZONTAL SWIPEABLE CAROUSEL FOR LIBRARY BOOKS */
+        .horizontal-swipe-container { 
+            display: flex; 
+            gap: 1.25rem; 
+            overflow-x: auto; 
+            scroll-snap-type: x mandatory; 
+            padding-bottom: 1rem; 
+            -webkit-overflow-scrolling: touch; 
+            scrollbar-width: thin; 
+            scrollbar-color: #EF233C transparent; 
+        }
+        .horizontal-swipe-container::-webkit-scrollbar { height: 6px; }
+        .horizontal-swipe-container::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); border-radius: 10px; }
+        .horizontal-swipe-container::-webkit-scrollbar-thumb { background: #EF233C; border-radius: 10px; }
+
+        .swipe-item-active { flex: 0 0 100%; scroll-snap-align: start; }
+
+        .user-list { display: flex; flex-direction: column; gap: 0.5rem; }
+        .user-item { display: flex; justify-content: space-between; align-items: center; background: #0A0F1D; padding: 0.75rem 1rem; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.08); }
+        
+        .btn-delete { background: #0F172A; color: #EF233C; border: 1px solid #EF233C; padding: 0.4rem 0.8rem; border-radius: 8px; cursor: pointer; font-size: 0.85rem; font-weight: 600; }
         .btn-delete:hover { background: #EF233C; color: #FFFFFF; }
         
-        /* Book Card Styles with Cover Image */
-        .book-card { background: #000000; border: 1px solid #1B263B; border-radius: 12px; padding: 1.25rem; display: flex; flex-direction: column; justify-content: space-between; gap: 0.75rem; transition: transform 0.2s, border-color 0.2s; }
-        .book-card:hover { border-color: #EF233C; transform: translateY(-2px); }
-        .book-cover { width: 100%; height: 200px; object-fit: cover; border-radius: 8px; background: #1B263B; margin-bottom: 0.5rem; border: 1px solid #1B263B; }
+        /* FEATURED BOOK CARD */
+        .active-book-card-featured { background: #0A0F1D; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 18px; padding: 1.25rem; display: flex; gap: 1.25rem; align-items: center; position: relative; box-shadow: inset 0 2px 6px rgba(0,0,0,0.5); }
+        .active-book-cover-wrap { position: relative; width: 130px; height: 180px; flex-shrink: 0; border-radius: 12px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.1); background: #0F172A; }
+        .active-book-cover { width: 100%; height: 100%; object-fit: cover; }
+        .active-book-ribbon { position: absolute; top: 0; right: 12px; background: #EF233C; width: 22px; height: 28px; display: flex; align-items: center; justify-content: center; clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 75%, 0 100%); }
         
-        /* Top 10 Book Card Styles */
-        .top-book-card { background: #000000; border: 1px solid #1B263B; border-radius: 12px; padding: 1.25rem; display: flex; flex-direction: column; justify-content: space-between; gap: 0.75rem; transition: transform 0.2s; }
-        .top-book-card:hover { transform: translateY(-2px); border-color: #EF233C; }
-        .top-book-cover { width: 100%; height: 200px; object-fit: cover; border-radius: 8px; background: #1B263B; margin-bottom: 0.5rem; }
-        .top-book-desc { color: #94a3b8; font-size: 0.85rem; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+        .active-book-details { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+        .active-book-title { font-size: 1.4rem; font-weight: 800; color: #FFFFFF; letter-spacing: -0.5px; margin-bottom: 0.2rem; text-transform: uppercase; }
+        .active-book-author { font-size: 0.85rem; color: #94a3b8; margin-bottom: 1rem; font-weight: 500; }
+        
+        .active-book-stats-row { display: flex; gap: 0.75rem; margin-bottom: 1rem; flex-wrap: wrap; }
+        .stat-badge { background: #0F172A; border: 1px solid rgba(255, 255, 255, 0.08); padding: 0.45rem 0.8rem; border-radius: 10px; display: flex; align-items: center; gap: 0.4rem; font-size: 0.8rem; font-weight: 600; color: #FFFFFF; }
+        
+        .progress-bar-container { width: 100%; background: #0F172A; height: 6px; border-radius: 3px; overflow: hidden; margin-bottom: 0.75rem; border: 1px solid rgba(255, 255, 255, 0.05); }
+        .progress-bar-fill { background: #EF233C; height: 100%; border-radius: 3px; transition: width 0.3s ease; }
+        
+        .active-book-actions-row { display: flex; align-items: center; gap: 0.75rem; justify-content: space-between; }
+        .btn-continue-reading { background: #EF233C; color: #FFFFFF; border: none; padding: 0.75rem 1.25rem; border-radius: 12px; font-weight: 700; cursor: pointer; font-size: 0.9rem; box-shadow: 0 4px 15px rgba(239, 35, 60, 0.4); flex: 1; text-align: center; transition: background 0.2s; }
+        .btn-continue-reading:hover { background: #d90429; }
+        
+        .icon-action-buttons { display: flex; gap: 0.4rem; }
+        .icon-btn-circle { width: 40px; height: 40px; border-radius: 50%; background: #0F172A; border: 1px solid rgba(255, 255, 255, 0.08); display: flex; align-items: center; justify-content: center; color: #FFFFFF; cursor: pointer; transition: background 0.2s; }
+        .icon-btn-circle:hover { background: #1E293B; border-color: #EF233C; }
 
-        .btn-read { background: #1B263B; color: #FFFFFF; border: 1px solid #27374D; padding: 0.6rem 1rem; border-radius: 8px; cursor: pointer; font-weight: 600; width: 100%; font-size: 0.85rem; }
-        .btn-read:hover { background: #EF233C; border-color: #EF233C; }
-        
-        .btn-complete { background: #0D1B2A; color: #FFFFFF; border: 1px solid #1B263B; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.8rem; width: 100%; }
-        .btn-complete:hover { background: #1B263B; border-color: #EF233C; }
-        
-        .btn-delete-book { background: #1B263B; color: #EF233C; border: 1px solid #EF233C; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.8rem; width: 100%; }
-        .btn-delete-book:hover { background: #EF233C; color: #FFFFFF; }
+        /* Leaderboards Side-by-Side Grid & Scrollable Table Containers */
+        .leaderboards-side-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem; }
+        @media (max-width: 900px) {
+            .leaderboards-side-grid { grid-template-columns: 1fr; }
+        }
+
+        .leaderboard-scroll-box { max-height: 340px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #EF233C rgba(255,255,255,0.05); }
+        .leaderboard-scroll-box::-webkit-scrollbar { width: 6px; }
+        .leaderboard-scroll-box::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); border-radius: 10px; }
+        .leaderboard-scroll-box::-webkit-scrollbar-thumb { background: #EF233C; border-radius: 10px; }
+
+        .leaderboard-table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; margin-bottom: 0.5rem; }
+        .leaderboard-table th, .leaderboard-table td { padding: 0.85rem 1rem; text-align: left; border-bottom: 1px solid rgba(255, 255, 255, 0.08); font-size: 0.9rem; }
+        .leaderboard-table th { color: #94a3b8; font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; position: sticky; top: 0; background: #0F172A; z-index: 2; }
+        .leaderboard-table tr:hover { background: rgba(255, 255, 255, 0.02); }
+        .rank-badge-pill { display: inline-block; padding: 0.25rem 0.65rem; border-radius: 50px; font-size: 0.75rem; font-weight: 700; background: rgba(239, 35, 60, 0.15); color: #EF233C; border: 1px solid rgba(239, 35, 60, 0.3); }
+        .rank-number { font-weight: 800; color: #FFFFFF; width: 35px; display: inline-block; }
+
+        /* Badge Requirements Guide Card (Blended Background) */
+        .badges-guide-card { background: rgba(15, 23, 42, 0.5); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 16px; padding: 1.25rem; margin-top: 1rem; }
+        .badges-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.75rem; margin-top: 0.75rem; }
+        .badge-requirement-item { background: #0A0F1D; border: 1px solid rgba(255, 255, 255, 0.06); padding: 0.65rem 0.85rem; border-radius: 10px; display: flex; flex-direction: column; gap: 0.2rem; }
+        .badge-req-range { font-size: 0.75rem; color: #94a3b8; font-weight: 700; text-transform: uppercase; }
 
         /* EPUB.JS IMMERSIVE FULL-SCREEN READER */
         .reader-card { padding: 0 !important; flex: 1; display: flex; flex-direction: column; border: none !important; background: #000000 !important; box-shadow: none !important; margin: 0 !important; height: 100vh; width: 100vw; position: fixed; top: 0; left: 0; z-index: 99999; }
         .iframe-wrapper { flex: 1; width: 100%; height: 100%; background: #000000; display: flex; position: relative; }
         #epub-viewer { width: 100%; height: 100%; }
         
-        /* Reader Tap Zones for Page Turning & Menu Toggle */
         .reader-tap-zone { position: absolute; top: 0; height: 100%; z-index: 99998; cursor: pointer; }
         .reader-tap-left { left: 0; width: 30%; }
         .reader-tap-center { left: 30%; width: 40%; }
         .reader-tap-right { right: 0; width: 30%; }
 
-        /* Floating Overlay Controls with Smooth Fade & Toggle Support */
         .reader-nav-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 100000; pointer-events: none; opacity: 1; visibility: visible; transition: opacity 0.3s ease, visibility 0.3s ease; }
         .reader-nav-overlay.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
         .reader-nav-overlay * { pointer-events: auto; }
 
         .floating-nav-top-left { position: absolute; top: 1.25rem; left: 1.25rem; }
-        .floating-nav-bottom { position: absolute; bottom: 1.25rem; left: 50%; transform: translateX(-50%); background: rgba(13, 27, 42, 0.85); color: #FFFFFF; border: 1px solid rgba(39, 55, 77, 0.8); padding: 0.5rem 1rem; border-radius: 50px; font-weight: 600; font-size: 0.85rem; backdrop-filter: blur(5px); box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        .floating-nav-bottom { position: absolute; bottom: 1.25rem; left: 50%; transform: translateX(-50%); background: rgba(15, 23, 42, 0.85); color: #FFFFFF; border: 1px solid rgba(255, 255, 255, 0.15); padding: 0.5rem 1rem; border-radius: 50px; font-weight: 600; font-size: 0.85rem; backdrop-filter: blur(5px); box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
 
-        .btn-float { background: rgba(13, 27, 42, 0.85); color: #FFFFFF; border: 1px solid rgba(39, 55, 77, 0.8); padding: 0.75rem 1.1rem; border-radius: 50px; cursor: pointer; font-weight: 600; font-size: 0.9rem; backdrop-filter: blur(5px); box-shadow: 0 4px 15px rgba(0,0,0,0.5); transition: all 0.2s; }
+        .btn-float { background: rgba(15, 23, 42, 0.85); color: #FFFFFF; border: 1px solid rgba(255, 255, 255, 0.15); padding: 0.75rem 1.1rem; border-radius: 50px; cursor: pointer; font-weight: 600; font-size: 0.9rem; backdrop-filter: blur(5px); box-shadow: 0 4px 15px rgba(0,0,0,0.5); transition: all 0.2s; }
         .btn-float:hover { background: #EF233C; border-color: #EF233C; transform: scale(1.05); }
 
-        /* ONE-TIME TUTORIAL TIP OVERLAY STYLES */
         .reader-tip-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(3px); z-index: 150000; display: flex; align-items: center; justify-content: center; transition: opacity 0.5s ease; pointer-events: none; }
-        .reader-tip-card { background: #0D1B2A; border: 2px solid #EF233C; padding: 1.5rem 2rem; border-radius: 16px; text-align: center; max-width: 320px; box-shadow: 0 10px 30px rgba(239, 35, 60, 0.4); animation: tipPulse 1.5s infinite alternate; }
+        .reader-tip-card { background: #0F172A; border: 2px solid #EF233C; padding: 1.5rem 2rem; border-radius: 16px; text-align: center; max-width: 320px; box-shadow: 0 10px 30px rgba(239, 35, 60, 0.4); animation: tipPulse 1.5s infinite alternate; }
         .reader-tip-arrows { font-size: 1.5rem; letter-spacing: 0.5rem; color: #EF233C; margin-bottom: 0.5rem; }
         @keyframes tipPulse { 0% { transform: scale(1); } 100% { transform: scale(1.03); } }
 
-        .alert { padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.9rem; font-weight: 500; }
-        .alert-error { background: #1B263B; color: #EF233C; border: 1px solid #EF233C; }
-        .alert-success { background: #0D1B2A; color: #FFFFFF; border: 1px solid #1B263B; }
+        .alert { padding: 0.75rem 1rem; border-radius: 10px; margin-bottom: 1rem; font-size: 0.9rem; font-weight: 500; }
+        .alert-error { background: #0A0F1D; color: #EF233C; border: 1px solid #EF233C; }
+        .alert-success { background: #0A0F1D; color: #28a745; border: 1px solid #28a745; }
 
-        @media (max-width: 900px) {
-            .split-login-container { flex-direction: column; }
-            .login-hero { padding: 2rem; min-height: 250px; }
-            .hero-title { font-size: 2.2rem; }
-            .login-form-panel { padding: 2rem 1rem; }
-            .dashboard-main { padding: 1rem; }
-            .btn-float { padding: 0.5rem 0.85rem; font-size: 0.8rem; }
+        /* READING BREAK CHESS STYLES (BLACK & WHITE THEME) */
+        .chess-container { display: flex; flex-direction: column; align-items: center; gap: 1.25rem; width: 100%; }
+        .chess-board-box { width: 380px; height: 380px; max-width: 100%; border-radius: 12px; overflow: hidden; border: 2px solid rgba(255, 255, 255, 0.15); box-shadow: 0 10px 30px rgba(0,0,0,0.8); background: #1E293B; cursor: pointer; }
+        .chess-status-bar { width: 100%; max-width: 380px; background: #0A0F1D; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 0.75rem 1rem; display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; font-weight: 700; }
+
+        /* Custom Black & White Chess Board Theme overrides */
+        .white-1e1d7 { background-color: #f0f0f0 !important; color: #333333 !important; }
+        .black-3c85d { background-color: #2b2b2b !important; color: #f0f0f0 !important; }
+
+        @media (max-width: 768px) {
+            .active-book-card-featured { flex-direction: column; align-items: stretch; }
+            .active-book-cover-wrap { width: 100%; height: 210px; }
         }
     </style>
 </head>
@@ -165,42 +252,54 @@
             </div>
         </a>
         <div id="user-nav" class="user-info">
-            <span>Logged in: <strong id="nav-username"></strong></span>
-            <button class="btn-logout" onclick="logout()">Logout</button>
+            <div id="nav-badge-container"></div>
+            <div>
+                <span id="nav-username">Anthon</span>
+                <button class="btn-logout" onclick="logout()" style="margin-left: 0.75rem;">Logout</button>
+            </div>
         </div>
     </header>
 
     <main>
         <!-- LOGIN VIEW -->
-        <div id="login-view" class="split-login-container">
-            <div class="login-hero">
-                <div style="font-weight: 700; font-size: 1.3rem; display: flex; align-items: center; gap: 0.5rem;"><span style="font-size: 1.5rem;">🦜</span> 501<span style="color: #EF233C;">Books</span></div>
-                <div class="hero-content">
-                    <h1 class="hero-title">Read more.<br>Carry less.</h1>
-                    <p class="hero-desc">Keep your ebooks organized and enjoy reading them anywhere seamlessly across Belize.</p>
+        <div id="login-view" class="mobile-login-container">
+            <div class="mobile-hero-header">
+                <div class="mobile-logo-ring">
+                    <div class="mobile-logo-circle">🦜</div>
                 </div>
-                <div style="color: #94a3b8; font-size: 0.85rem;">© 2026 501Books</div>
+                <div class="mobile-brand-title">501<span style="color: #EF233C;">BOOKS</span></div>
+                <div class="mobile-brand-subtitle">Your Belizean Bookstore</div>
             </div>
 
-            <div class="login-form-panel">
-                <div class="login-card-light">
-                    <h2 style="font-size: 1.8rem; margin-bottom: 0.25rem;">Welcome back</h2>
-                    <p style="color: #94a3b8; font-size: 0.95rem; margin-bottom: 1.75rem;">Enter your details to sign in.</p>
-                    
-                    <div id="login-alert"></div>
-                    <form id="login-form">
-                        <div class="form-group">
-                            <label>Username (Full Name)</label>
-                            <input type="text" id="login-username" placeholder="Enter username" required>
+            <div class="mobile-login-card">
+                <h2 style="font-size: 1.9rem; margin-bottom: 0.25rem; font-weight: 800; color: #FFFFFF;">Welcome back</h2>
+                <p style="color: #94a3b8; font-size: 0.9rem; margin-bottom: 1.5rem;">Enter your details to sign in.</p>
+                
+                <div id="login-alert"></div>
+                <form id="login-form">
+                    <div class="form-group">
+                        <label style="display: flex; justify-content: space-between; align-items: center;">
+                            Username (Full Name) <span style="color: #EF233C; font-size: 1rem;">•</span>
+                        </label>
+                        <div style="position: relative;">
+                            <span style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); font-size: 1.1rem; color: #94a3b8;">👤</span>
+                            <input type="text" id="login-username" placeholder="Enter username" style="padding-left: 2.8rem;" required>
+                            <span class="input-sparkle-icon">✨</span>
                         </div>
-                        <div class="form-group">
-                            <label>Password</label>
-                            <input type="password" id="login-password" placeholder="••••••••" required>
+                    </div>
+                    <div class="form-group">
+                        <label style="display: flex; justify-content: space-between; align-items: center;">
+                            Password <span style="color: #EF233C; font-size: 1rem;">•</span>
+                        </label>
+                        <div style="position: relative;">
+                            <span style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); font-size: 1.1rem; color: #94a3b8;">🔒</span>
+                            <input type="password" id="login-password" value="••••••••" placeholder="••••••••" style="padding-left: 2.8rem;" required>
+                            <span class="input-sparkle-icon">✨</span>
                         </div>
-                        <button type="submit" class="btn-primary" style="margin-top: 0.5rem;">Log in</button>
-                        <button type="button" class="btn-whatsapp" onclick="openSignUpModal()">Create Account</button>
-                    </form>
-                </div>
+                    </div>
+                    <button type="submit" class="btn-primary" style="margin-top: 0.5rem;">Log in</button>
+                    <button type="button" class="btn-secondary-dark" onclick="openSignUpModal()">Create Account</button>
+                </form>
             </div>
         </div>
 
@@ -235,24 +334,22 @@
             </div>
         </div>
 
-        <!-- GLOBAL BOOK REQUEST MODAL (DETAILS POPUP) -->
+        <!-- GLOBAL BOOK REQUEST MODAL -->
         <div id="book-request-modal" class="modal-overlay hidden">
             <div class="modal-card" style="max-width: 450px;">
                 <button class="modal-close" onclick="closeBookRequestModal()">&times;</button>
                 <h2 style="margin-bottom: 1rem;">Book Details</h2>
                 <div style="display: flex; gap: 1rem; margin-bottom: 1rem; align-items: flex-start;">
-                    <img id="req-modal-cover" src="" alt="Book Cover" style="width: 100px; height: 140px; object-fit: cover; border-radius: 8px; background: #1B263B; border: 1px solid #1B263B; flex-shrink: 0;">
+                    <img id="req-modal-cover" src="" alt="Book Cover" style="width: 100px; height: 140px; object-fit: cover; border-radius: 8px; background: #0F172A; border: 1px solid rgba(255, 255, 255, 0.1); flex-shrink: 0;">
                     <div>
                         <h3 id="req-modal-title" style="font-size: 1.1rem; margin-bottom: 0.3rem; color: #FFFFFF;"></h3>
                         <p id="req-modal-author" style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 0.5rem;"></p>
                     </div>
                 </div>
-                <!-- Description displays here inside popup -->
                 <p id="req-modal-desc" style="font-size: 0.85rem; color: #cbd5e1; max-height: 140px; overflow-y: auto; margin-bottom: 1.25rem; line-height: 1.4;"></p>
                 <button id="req-modal-btn" class="btn-success-green" onclick="submitBookRequest()">Add To Library</button>
             </div>
         </div>
-
         <!-- DASHBOARDS -->
         <div id="dashboard-container" class="dashboard-main hidden">
             <!-- ADMIN VIEW -->
@@ -260,6 +357,14 @@
                 <div class="card">
                     <h2>Customer Accounts</h2>
                     <div id="customer-accounts-list" class="user-list"></div>
+                </div>
+
+                <!-- ADMIN RESET CHESS ELO CARD -->
+                <div class="card">
+                    <h2>Chess Management</h2>
+                    <div id="admin-chess-alert"></div>
+                    <p style="color: #94a3b8; font-size: 0.85rem; margin-bottom: 1rem;">Reset all registered users' chess Elo ratings back to 0.</p>
+                    <button type="button" class="btn-primary" style="background: #ef233c;" onclick="resetAllUserElos()">Reset All Users Elo to 0</button>
                 </div>
 
                 <div class="card">
@@ -310,13 +415,13 @@
 
             <!-- CUSTOMER VIEW -->
             <div id="customer-view" class="hidden">
-                <!-- MODERN GLOBAL SEARCH BAR TO REQUEST ANY BOOK -->
-                <div class="card" style="margin-bottom: 1.5rem;">
-                    <h2>Search Books</h2>
-                    <p style="color: #94a3b8; font-size: 0.5rem; margin-bottom: 1rem;">Certain titles cannot be added due to not having distribution licensing.</p>
+                <div class="card" style="margin-bottom: 1.25rem;">
+                    <h2><span style="color: #EF233C;">•</span> Search Books <span style="font-size: 0.9rem; cursor: help; color: #94a3b8;" title="Certain titles cannot be added due to not having distribution licensing.">ⓘ</span></h2>
+                    <p style="color: #94a3b8; font-size: 0.8rem; margin-bottom: 0.75rem;">Certain titles cannot be added due to not having distribution licensing.</p>
                     <div class="modern-search-wrapper">
                         <span class="modern-search-icon">🔍</span>
                         <input type="text" id="global-book-search-input" class="modern-search-input-box" placeholder="Search any book title or author..." autocomplete="off">
+                        <span class="input-sparkle-icon" style="right: 1rem;">✨</span>
                         <div id="global-search-dropdown" class="modern-search-dropdown"></div>
                     </div>
                 </div>
@@ -324,34 +429,144 @@
                 <div class="library-tabs">
                     <button id="tab-active-books" class="tab-btn active" onclick="switchLibraryTab('active')">📖 My Library</button>
                     <button id="tab-completed-books" class="tab-btn" onclick="switchLibraryTab('completed')">✅ Completed Books</button>
-                    <button id="tab-top-books" class="tab-btn" onclick="switchLibraryTab('top10')">🔥 Top 10 Books</button>
+                    <button id="tab-leaderboard" class="tab-btn" onclick="switchLibraryTab('leaderboard')">🏆 Leaderboards</button>
+                    <button id="tab-reading-break" class="tab-btn" onclick="switchLibraryTab('reading-break')">♟️ Reading Break</button>
                 </div>
 
-                <!-- My Library / Completed Card Section -->
-                <div id="library-books-section" class="card">
-                    <h2 id="library-section-title">Active Books</h2>
-                    <div id="customer-books-grid" class="grid"></div>
+                <!-- SEAMLESSLY BLENDED LIBRARY BOOKS SECTION -->
+                <div id="library-books-section" class="library-seamless-card">
+                    <h2 id="library-section-title" style="margin-bottom: 1rem;">Active Books (1)</h2>
+                    <div id="customer-books-grid" class="horizontal-swipe-container"></div>
                 </div>
 
-                <!-- Top 10 Books Section -->
-                <div id="top-books-section" class="card hidden">
-                    <h2>Top 10 Books of The Month</h2>
-                    <p style="color: #94a3b8; font-size: 0.9rem; margin-bottom: 1.25rem;">Hand-picked favorites and trending reads for this month.</p>
-                    <div id="top-books-grid" class="grid"></div>
+                <!-- LEADERBOARD SECTION (SIDE-BY-SIDE WITH SCROLLABLE BOXES WHEN > 10 PLAYERS) -->
+                <div id="leaderboard-section" class="library-seamless-card hidden">
+                    <h2 style="margin-bottom: 0.4rem;">Community Leaderboards & Badges</h2>
+                    <p style="color: #94a3b8; font-size: 0.9rem; margin-bottom: 1.25rem;">Track reading progress and chess ratings side by side!</p>
+                    
+                    <div class="leaderboards-side-grid">
+                        <!-- Book Reader Leaderboard -->
+                        <div class="card" style="margin-bottom: 0;">
+                            <h3 style="font-size: 1.05rem; color: #FFFFFF; margin-bottom: 0.75rem;">📖 Book Reader Rankings</h3>
+                            <div class="leaderboard-scroll-box">
+                                <table class="leaderboard-table">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 50px;">Rank</th>
+                                            <th>Username</th>
+                                            <th>Books</th>
+                                            <th>Badge</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="leaderboard-tbody">
+                                        <!-- Populated dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Chess Elo Leaderboard -->
+                        <div class="card" style="margin-bottom: 0;">
+                            <h3 style="font-size: 1.05rem; color: #FFFFFF; margin-bottom: 0.75rem;">♟️ Chess Elo Scoreboard</h3>
+                            <div class="leaderboard-scroll-box">
+                                <table class="leaderboard-table">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 50px;">Rank</th>
+                                            <th>Player</th>
+                                            <th>Elo Rating</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="chess-leaderboard-tbody">
+                                        <!-- Populated dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Badge Requirements Guide at the Bottom -->
+                    <div class="badges-guide-card">
+                        <h3 style="font-size: 0.95rem; color: #FFFFFF; margin-bottom: 0.25rem;">🎖️ Badge Ranking Requirements</h3>
+                        <div class="badges-grid">
+                            <div class="badge-requirement-item">
+                                <span class="badge-req-range">0 – 1 Books</span>
+                                <span style="font-weight: 700; color: #EF233C; font-size: 0.85rem;">🌱 Fresh-Ink</span>
+                            </div>
+                            <div class="badge-requirement-item">
+                                <span class="badge-req-range">2 – 4 Books</span>
+                                <span style="font-weight: 700; color: #EF233C; font-size: 0.85rem;">📖 Page-Turner</span>
+                            </div>
+                            <div class="badge-requirement-item">
+                                <span class="badge-req-range">5 – 7 Books</span>
+                                <span style="font-weight: 700; color: #EF233C; font-size: 0.85rem;">🐛 Book Worm</span>
+                            </div>
+                            <div class="badge-requirement-item">
+                                <span class="badge-req-range">8 – 9 Books</span>
+                                <span style="font-weight: 700; color: #EF233C; font-size: 0.85rem;">🔮 Book Anomaly</span>
+                            </div>
+                            <div class="badge-requirement-item">
+                                <span class="badge-req-range">10 – 14 Books</span>
+                                <span style="font-weight: 700; color: #EF233C; font-size: 0.85rem;">🧠 Literary Genius</span>
+                            </div>
+                            <div class="badge-requirement-item">
+                                <span class="badge-req-range">15 – 19 Books</span>
+                                <span style="font-weight: 700; color: #EF233C; font-size: 0.85rem;">📚 The Bibliophile</span>
+                            </div>
+                            <div class="badge-requirement-item">
+                                <span class="badge-req-range">20 – 29 Books</span>
+                                <span style="font-weight: 700; color: #EF233C; font-size: 0.85rem;">📁 The PDF File</span>
+                            </div>
+                            <div class="badge-requirement-item">
+                                <span class="badge-req-range">30 – 49 Books</span>
+                                <span style="font-weight: 700; color: #EF233C; font-size: 0.85rem;">🛋️ I don't touch grass</span>
+                            </div>
+                            <div class="badge-requirement-item">
+                                <span class="badge-req-range">50+ Books</span>
+                                <span style="font-weight: 700; color: #EF233C; font-size: 0.85rem;">⚡ You're just cheating now bro</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- READING BREAK CHESS SECTION -->
+                <div id="chess-section" class="library-seamless-card hidden">
+                    <h2 style="margin-bottom: 0.4rem;">♟️ Reading Break Chess Mini-Game</h2>
+                    <p style="color: #94a3b8; font-size: 0.9rem; margin-bottom: 1.25rem;">Click a piece to select and highlight it, then click the square where you want it to go!</p>
+                    
+                    <div class="chess-container">
+                        <!-- Two Custom Difficulty Levels Selector -->
+                        <div style="width: 100%; max-width: 380px; display: flex; align-items: center; gap: 0.75rem;">
+                            <label for="chess-difficulty" style="white-space: nowrap; margin-bottom: 0;">AI Level:</label>
+                            <select id="chess-difficulty" onchange="changeChessDifficulty()" style="padding: 0.6rem 1rem;">
+                                <option value="casual" selected>I just got here (Casual)</option>
+                                <option value="ranked">Leader Board Participation (Ranked)</option>
+                            </select>
+                        </div>
+
+                        <div class="chess-status-bar">
+                            <span id="chess-user-elo-display">Your Elo: 0</span>
+                            <span id="chess-game-status" style="color: #EF233C;">White to move</span>
+                        </div>
+                        
+                        <div id="chess-board" class="chess-board-box"></div>
+                        
+                        <div style="display: flex; gap: 0.75rem; width: 100%; max-width: 380px;">
+                            <button class="btn-primary" onclick="resetChessGame()">Restart Match</button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- EPUB READER VIEW (IMMERSIVE OVERLAY) -->
+            <!-- EPUB READER VIEW -->
             <div id="reader-view" class="hidden reader-card">
                 <div class="iframe-wrapper" id="reader-container-area">
                     <div id="epub-viewer"></div>
 
-                    <!-- Tap Zones for Page Turning & Menu Toggle -->
                     <div class="reader-tap-zone reader-tap-left" onclick="prevPage()" title="Previous Page"></div>
                     <div class="reader-tap-zone reader-tap-center" onclick="toggleReaderOverlay()" title="Toggle Menu"></div>
                     <div class="reader-tap-zone reader-tap-right" onclick="nextPage()" title="Next Page"></div>
 
-                    <!-- Floating Navigation Overlay -->
                     <div class="reader-nav-overlay" id="reader-nav-overlay">
                         <div class="floating-nav-top-left">
                             <button class="btn-float" onclick="closeReader()">← Library</button>
@@ -361,19 +576,18 @@
                         </div>
                     </div>
 
-                    <!-- One-Time Tutorial Tip Overlay -->
                     <div id="reader-tip-overlay" class="reader-tip-overlay hidden">
                         <div class="reader-tip-card">
                             <div class="reader-tip-arrows">👆</div>
                             <h3 style="color: #FFFFFF; font-size: 1.05rem; margin-bottom: 0.4rem;">Quick Tip</h3>
-                            <p style="color: #94a3b8; font-size: 0.85rem; line-height: 1.4;">Tap the center of the screen anytime to hide or show the library button.</p>
+                            <p style="color: #94a3b8; font-size: 0.85rem; line-height: 1.4;">Tap the center of the screen anytime to hide or show the library button. To flip pages tap left or right.</p>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- FLOATING WHATSAPP BUTTON FOR CUSTOMERS -->
+        <!-- FLOATING WHATSAPP BUTTON -->
         <a id="fab-get-book" href="javascript:void(0)" onclick="openWhatsAppGetBook()" class="fab-whatsapp hidden" title="Ask For Help">
             <svg viewBox="0 0 24 24">
                 <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/>
@@ -381,7 +595,6 @@
             Ask For Help
         </a>
     </main>
-
     <script>
         function getToken() { return localStorage.getItem('token'); }
         function showAlert(elId, msg, type = 'error') {
@@ -433,7 +646,6 @@
             }
         });
 
-        // --- GLOBAL SEARCH & REQUEST LOGIC ---
         let searchDebounceTimer = null;
         let selectedRequestBook = null;
 
@@ -539,7 +751,7 @@
                 const data = await res.json();
                 if (res.ok) {
                     reqBtn.textContent = 'Thank you, your book will be added shortly';
-                    reqBtn.style.background = '#28a745'; // Green success state
+                    reqBtn.style.background = '#28a745';
                 } else {
                     alert(data.error || 'Failed to send request.');
                     reqBtn.textContent = 'Add To Library';
@@ -586,99 +798,362 @@
             currentLibraryTab = tab;
             document.getElementById('tab-active-books').classList.toggle('active', tab === 'active');
             document.getElementById('tab-completed-books').classList.toggle('active', tab === 'completed');
-            document.getElementById('tab-top-books').classList.toggle('active', tab === 'top10');
+            document.getElementById('tab-leaderboard').classList.toggle('active', tab === 'leaderboard');
+            document.getElementById('tab-reading-break').classList.toggle('active', tab === 'reading-break');
 
             const libraryBooksSection = document.getElementById('library-books-section');
-            const topBooksSection = document.getElementById('top-books-section');
+            const leaderboardSection = document.getElementById('leaderboard-section');
+            const chessSection = document.getElementById('chess-section');
 
-            if (tab === 'top10') {
+            if (tab === 'leaderboard') {
                 libraryBooksSection.classList.add('hidden');
-                topBooksSection.classList.remove('hidden');
-                loadTopBooks();
+                chessSection.classList.add('hidden');
+                leaderboardSection.classList.remove('hidden');
+                loadLeaderboard();
+                loadChessLeaderboard();
+            } else if (tab === 'reading-break') {
+                libraryBooksSection.classList.add('hidden');
+                leaderboardSection.classList.add('hidden');
+                chessSection.classList.remove('hidden');
+                initChessGame();
             } else {
-                topBooksSection.classList.add('hidden');
+                leaderboardSection.classList.add('hidden');
+                chessSection.classList.add('hidden');
                 libraryBooksSection.classList.remove('hidden');
-                document.getElementById('library-section-title').textContent = tab === 'active' ? 'Active Books' : 'Completed Books';
                 loadCustomerBooks();
             }
         }
 
-        function loadTopBooks() {
-            const grid = document.getElementById('top-books-grid');
-            
-            const topBooks = [
-                {
-                    title: "Atomic Habits",
-                    author: "James Clear",
-                    cover: "https://cdn2.penguin.com.au/covers/original/9781473565425.jpg",
-                    description: "Step-by-step guide on how to build good habits, break bad ones, and master the tiny behaviors that lead to remarkable results."
-                },
-                {
-                    title: "The 48 Laws of Power",
-                    author: "Robert Greene",
-                    cover: "https://m.media-amazon.com/images/I/611X8GI7hpL.jpg",
-                    description: "A bold, controversial guide that distills 3,000 years of history into 48 strategic rules on how to gain, maintain, and protect power in social, professional, and political life."
-                },
-                {
-                    title: "Shoe Dog",
-                    author: "Phil Knight",
-                    cover: "https://everyday-reading.com/wp-content/covers/shoe-dog.jpeg",
-                    description: "The inspiring true story of how a young man built a global empire from a simple idea."
-                },
-                {
-                    title: "The Song of Achilles",
-                    author: "Madeline Miller",
-                    cover: "https://cdn.kobo.com/book-images/f162530c-1e6b-4d7c-abfb-374cb8b983d5/1200/1200/False/the-song-of-achilles.jpg",
-                    description: "A retelling of the Iliad from the perspective of Patroclus, exploring themes of love, friendship, and destiny."
-                },
-                {
-                    title: "The Psychology of Money",
-                    author: "Morgan Housel",
-                    cover: "https://arrowpointwealth.com/wp-content/uploads/psychology-of-money.png",
-                    description: "Timeless lessons on wealth, greed, and happiness, emphasizing the importance of behavior over knowledge in financial success."
-                },
-                {
-                    title: "Dead Beat",
-                    author: "Leigh Bardugo",
-                    cover: "https://m.media-amazon.com/images/S/compressed.photo.goodreads.com/books/1772037931i/247785403.jpg",
-                    description: "A thrilling fantasy novel that follows a young woman navigating a world of magic, crime, and intrigue."
-                },
-                {
-                    title: "The Calamity Club",
-                    author: "Kathryn Stockett",
-                    cover: "https://m.media-amazon.com/images/I/81zVu7TK1NL._SL1500_.jpg",
-                    description: "A gripping tale of friendship, betrayal, and resilience set against the backdrop of a small Southern town."
-                },
-                {
-                    title: "Exit Club",
-                    author: "Emily St. John Mandel",
-                    cover: "https://m.media-amazon.com/images/S/compressed.photo.goodreads.com/books/1767644639i/241683548.jpg",
-                    description: "A post-apocalyptic novel that explores the lives of a group of survivors navigating a world devastated by a mysterious pandemic."
-                },
-                {
-                    title: "The Knave and the Moon",
-                    author: "Rachel Gillig",
-                    cover: "https://www.thecreativemuggle.com/wp-content/uploads/2026/01/The-Knave-and-the-Moon-by-Rachel-Gillig-683x1024.jpg",
-                    description: "A whimsical and enchanting story that follows a young protagonist on a magical journey through a fantastical world."
-                },
-                {
-                    title: "Hollow Bones",
-                    author: "Jodi Picoult",
-                    cover: "https://m.media-amazon.com/images/I/81JuGnOFPdL._SL1500_.jpg",
-                    description: "A gripping psychological thriller that delves into the complexities of family dynamics, secrets, and consequences."
-                }
-            ];
+        function getRankBadge(bookCount) {
+            if (bookCount >= 50) return "⚡ You're just cheating now bro";
+            if (bookCount >= 30) return "🛋️ I don't touch grass";
+            if (bookCount >= 20) return "📁 The PDF File";
+            if (bookCount >= 15) return "📚 The Bibliophile";
+            if (bookCount >= 10) return "🧠 Literary Genius";
+            if (bookCount >= 8)  return "🔮 Book Anomaly";
+            if (bookCount >= 5)  return "🐛 Book Worm";
+            if (bookCount >= 2)  return "📖 Page-Turner";
+            return "🌱 Fresh-Ink";
+        }
 
-            grid.innerHTML = topBooks.map(b => `
-                <div class="top-book-card">
-                    <div>
-                        <img src="${b.cover}" alt="${b.title}" class="top-book-cover">
-                        <h3 style="color:#FFFFFF; font-size: 1rem; margin-bottom: 0.2rem;">${b.title}</h3>
-                        <p style="color:#94a3b8; font-size: 0.85rem; margin-bottom: 0.5rem;">by ${b.author}</p>
-                        <p class="top-book-desc">${b.description}</p>
-                    </div>
-                </div>
-            `).join('');
+        async function loadLeaderboard() {
+            const tbody = document.getElementById('leaderboard-tbody');
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #94a3b8; padding: 2rem;">Loading leaderboard...</td></tr>`;
+
+            try {
+                const res = await fetch('/api/leaderboard', {
+                    headers: { 'Authorization': `Bearer ${getToken()}` }
+                });
+                const data = await res.json();
+
+                if (!res.ok) {
+                    tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #EF233C; padding: 2rem;">${data.error || 'Failed to load leaderboard.'}</td></tr>`;
+                    return;
+                }
+
+                if (!data.length) {
+                    tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #94a3b8; padding: 2rem;">No ranked users yet.</td></tr>`;
+                    return;
+                }
+
+                tbody.innerHTML = data.map((user, index) => {
+                    const rank = index + 1;
+                    const count = user.completed_count || 0;
+                    const badge = getRankBadge(count);
+
+                    let medalIcon = `<span class="rank-number">#${rank}</span>`;
+                    if (rank === 1) medalIcon = `<span class="rank-number" style="color: #FFD700;">🥇 1</span>`;
+                    else if (rank === 2) medalIcon = `<span class="rank-number" style="color: #C0C0C0;">🥈 2</span>`;
+                    else if (rank === 3) medalIcon = `<span class="rank-number" style="color: #CD7F32;">🥉 3</span>`;
+
+                    return `
+                        <tr>
+                            <td>${medalIcon}</td>
+                            <td style="font-weight: 700; color: #FFFFFF;">${user.username}</td>
+                            <td>${count}</td>
+                            <td><span class="rank-badge-pill">${badge}</span></td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (err) {
+                console.error('Error loading leaderboard:', err);
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #EF233C; padding: 2rem;">Network error loading leaderboard.</td></tr>`;
+            }
+        }
+        // --- READING BREAK CHESS MINI-GAME SCRIPT ---
+        let chessGame = null;
+        let chessBoard = null;
+        let currentUserElo = 0;
+        let isGameFinished = false;
+
+        // CLICK-TO-MOVE CHESS STATE VARIABLES
+        let selectedSquare = null;
+
+        function removeSquareHighlights() {
+            $('#chess-board .square-55d63').css('background-color', '').css('box-shadow', '');
+        }
+
+        function highlightSquare(square) {
+            const $square = $('#chess-board .square-' + square);
+            // Highlight the selected square with a distinct glowing border and background tint
+            $square.css({
+                'background-color': 'rgba(239, 35, 60, 0.4) !important',
+                'box-shadow': 'inset 0 0 10px #EF233C'
+            });
+        }
+
+        async function initChessGame() {
+            if (!chessGame) {
+                chessGame = new Chess();
+            }
+
+            setTimeout(() => {
+                const boardEl = document.getElementById('chess-board');
+                if (boardEl) boardEl.innerHTML = '';
+
+                chessBoard = Chessboard('chess-board', {
+                    draggable: false, // Click-to-move mode enabled
+                    position: 'start',
+                    pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png'
+                });
+
+                // Attach click handler to squares for click-to-move interaction
+                $('#chess-board').on('click', '.square-55d63', onSquareClick);
+
+                updateChessGameStatus();
+            }, 100);
+
+            loadChessLeaderboard();
+        }
+
+        function changeChessDifficulty() {
+            resetChessGame();
+        }
+
+        function onSquareClick(e) {
+            if (chessGame.game_over() || isGameFinished) return;
+
+            // Only allow moves when it's White's (User's) turn
+            if (chessGame.turn() !== 'w') return;
+
+            const targetSquare = $(this).attr('data-square');
+
+            // If no square is selected yet, select a White piece
+            if (selectedSquare === null) {
+                const piece = chessGame.get(targetSquare);
+                if (piece && piece.color === 'w') {
+                    selectedSquare = targetSquare;
+                    removeSquareHighlights();
+                    highlightSquare(selectedSquare);
+                }
+                return;
+            }
+
+            // If clicking the same square, deselect it
+            if (selectedSquare === targetSquare) {
+                selectedSquare = null;
+                removeSquareHighlights();
+                return;
+            }
+
+            // If clicking another of White's pieces, change selection
+            const targetPiece = chessGame.get(targetSquare);
+            if (targetPiece && targetPiece.color === 'w') {
+                selectedSquare = targetSquare;
+                removeSquareHighlights();
+                highlightSquare(selectedSquare);
+                return;
+            }
+
+            // Attempt move from selectedSquare to targetSquare
+            const move = chessGame.move({
+                from: selectedSquare,
+                to: targetSquare,
+                promotion: 'q'
+            });
+
+            // Illegal move attempted
+            if (move === null) return;
+
+            // Move succeeded
+            selectedSquare = null;
+            removeSquareHighlights();
+            if (chessBoard) chessBoard.position(chessGame.fen());
+
+            updateChessGameStatus();
+
+            if (!chessGame.game_over()) {
+                document.getElementById('chess-game-status').textContent = "Bot thinking...";
+                setTimeout(() => {
+                    makeBotMove();
+                }, 400);
+            }
+        }
+
+        function makeBotMove() {
+            if (chessGame.game_over() || isGameFinished) return;
+
+            const moves = chessGame.moves({ verbose: true });
+            if (moves.length === 0) return;
+
+            const mode = document.getElementById('chess-difficulty').value;
+            
+            // Casual mode: 10% blunder rate, Ranked mode: 3% blunder rate
+            let blunderChance = mode === 'casual' ? 0.10 : 0.03;
+
+            let chosenMove;
+
+            // 1. Handle Blunder Chance
+            if (Math.random() < blunderChance) {
+                const randomMove = moves[Math.floor(Math.random() * moves.length)];
+                chosenMove = randomMove.san;
+            } else {
+                // 2. Checkmate Prioritization
+                let checkmateMove = moves.find(m => {
+                    chessGame.move(m);
+                    const isMate = chessGame.in_checkmate();
+                    chessGame.undo();
+                    return isMate;
+                });
+
+                if (checkmateMove) {
+                    chosenMove = checkmateMove.san;
+                } else {
+                    // 3. Prioritize Checks or Captures
+                    const prioritizedMoves = moves.filter(m => m.captured || m.san.includes('+'));
+                    
+                    let captureChance = mode === 'casual' ? 0.3 : 0.85;
+                    if (prioritizedMoves.length > 0 && Math.random() < captureChance) {
+                        const selected = prioritizedMoves[Math.floor(Math.random() * prioritizedMoves.length)];
+                        chosenMove = selected.san;
+                    } else {
+                        const standardMove = moves[Math.floor(Math.random() * moves.length)];
+                        chosenMove = standardMove.san;
+                    }
+                }
+            }
+
+            chessGame.move(chosenMove);
+            if (chessBoard) chessBoard.position(chessGame.fen());
+            updateChessGameStatus();
+        }
+
+        function updateChessGameStatus() {
+            const statusEl = document.getElementById('chess-game-status');
+            if (!statusEl) return;
+            
+            const mode = document.getElementById('chess-difficulty').value;
+
+            if (chessGame.in_checkmate()) {
+                const winner = chessGame.turn() === 'w' ? 'Black (Bot)' : 'White (You)';
+                statusEl.textContent = `Checkmate! ${winner} wins.`;
+                if (!isGameFinished) {
+                    isGameFinished = true;
+                    // Only send game result if playing in Ranked mode
+                    if (mode === 'ranked') {
+                        handleChessGameOver(chessGame.turn() === 'b' ? 1 : 0);
+                    } else {
+                        statusEl.textContent += " (Casual Mode - No Elo change)";
+                    }
+                }
+            } else if (chessGame.in_draw()) {
+                statusEl.textContent = "Game Over - Draw!";
+                if (!isGameFinished) {
+                    isGameFinished = true;
+                    if (mode === 'ranked') {
+                        handleChessGameOver(0.5);
+                    }
+                }
+            } else {
+                statusEl.textContent = chessGame.turn() === 'w' ? "Your turn (White)" : "Bot thinking...";
+            }
+        }
+
+        async function handleChessGameOver(result) {
+            try {
+                const res = await fetch('/api/chess/game-over', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${getToken()}`
+                    },
+                    body: JSON.stringify({ result })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    currentUserElo = data.newElo;
+                    const eloDisp = document.getElementById('chess-user-elo-display');
+                    if (eloDisp) eloDisp.textContent = `Your Elo: ${currentUserElo}`;
+                    loadChessLeaderboard();
+                }
+            } catch (err) {
+                console.error("Failed to post chess result:", err);
+            }
+        }
+
+        function resetChessGame() {
+            if (chessGame) {
+                chessGame.reset();
+                selectedSquare = null;
+                removeSquareHighlights();
+                if (chessBoard) chessBoard.position('start');
+                isGameFinished = false;
+                updateChessGameStatus();
+            }
+        }
+
+        async function loadChessLeaderboard() {
+            const tbody = document.getElementById('chess-leaderboard-tbody');
+            if (!tbody) return;
+            tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #94a3b8; padding: 2rem;">Loading leaderboard...</td></tr>`;
+            try {
+                const res = await fetch('/api/chess/leaderboard', {
+                    headers: { 'Authorization': `Bearer ${getToken()}` }
+                });
+                const data = await res.json();
+                if (res.ok && data.length) {
+                    tbody.innerHTML = data.map((user, idx) => {
+                        const rank = idx + 1;
+                        let medalIcon = `<span class="rank-number">#${rank}</span>`;
+                        if (rank === 1) medalIcon = `<span class="rank-number" style="color: #FFD700;">🥇 1</span>`;
+                        else if (rank === 2) medalIcon = `<span class="rank-number" style="color: #C0C0C0;">🥈 2</span>`;
+                        else if (rank === 3) medalIcon = `<span class="rank-number" style="color: #CD7F32;">🥉 3</span>`;
+
+                        return `
+                            <tr>
+                                <td>${medalIcon}</td>
+                                <td style="font-weight: 700; color: #FFFFFF;">${user.username}</td>
+                                <td><span class="rank-badge-pill">${user.chess_elo !== undefined ? user.chess_elo : 0} Elo</span></td>
+                            </tr>
+                        `;
+                    }).join('');
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #94a3b8; padding: 2rem;">No chess records yet.</td></tr>`;
+                }
+            } catch (err) {
+                console.error("Chess leaderboard load error:", err);
+                tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #EF233C; padding: 2rem;">Error loading chess leaderboard.</td></tr>`;
+            }
+        }
+
+        async function resetAllUserElos() {
+            if (!confirm("Are you sure you want to reset ALL users' chess Elo ratings back to 0?")) return;
+            try {
+                const res = await fetch('/api/admin/reset-elo', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${getToken()}` }
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    showAlert('admin-chess-alert', data.message, 'success');
+                    loadChessLeaderboard();
+                } else {
+                    showAlert('admin-chess-alert', data.error || 'Failed to reset Elo ratings.');
+                }
+            } catch (err) {
+                console.error('Reset Elo error:', err);
+                showAlert('admin-chess-alert', 'Network error resetting Elo ratings.');
+            }
         }
 
         async function renderApp() {
@@ -708,6 +1183,18 @@
             appHeader.classList.remove('hidden');
             
             document.getElementById('nav-username').textContent = user.username;
+            currentUserElo = user.chess_elo !== undefined ? user.chess_elo : 0;
+            const eloDisp = document.getElementById('chess-user-elo-display');
+            if (eloDisp) eloDisp.textContent = `Your Elo: ${currentUserElo}`;
+
+            // Render customer badge & rank pill on nav bar if customer
+            const navBadgeContainer = document.getElementById('nav-badge-container');
+            if (user.role === 'customer') {
+                const badgeTitle = getRankBadge(user.completed_count || 0);
+                navBadgeContainer.innerHTML = `<span class="nav-badge-pill">#${user.rank} • ${badgeTitle}</span>`;
+            } else {
+                navBadgeContainer.innerHTML = `<span class="nav-badge-pill" style="background: rgba(255,255,255,0.1); color: #FFFFFF; border-color: rgba(255,255,255,0.2);">🛡️ Admin</span>`;
+            }
 
             if (user.role === 'admin') {
                 document.getElementById('admin-view').classList.remove('hidden');
@@ -815,18 +1302,16 @@
             loadedCustomerBooks = books || [];
             const grid = document.getElementById('customer-books-grid');
 
-            if (!loadedCustomerBooks.length) {
-                grid.innerHTML = `<p style="color:#94a3b8;">No ${currentLibraryTab === 'active' ? 'active' : 'completed'} books in your library.</p>`;
-                return;
-            }
-
             const filteredBooks = loadedCustomerBooks.filter(b => {
                 const isCompleted = b.is_completed === 1 || b.is_completed === true;
                 return currentLibraryTab === 'completed' ? isCompleted : !isCompleted;
             });
 
+            document.getElementById('library-section-title').textContent = 
+                currentLibraryTab === 'active' ? `Active Books (${filteredBooks.length})` : `Completed Books (${filteredBooks.length})`;
+
             if (!filteredBooks.length) {
-                grid.innerHTML = `<p style="color:#94a3b8;">No ${currentLibraryTab === 'active' ? 'active' : 'completed'} books found.</p>`;
+                grid.innerHTML = `<p style="color:#94a3b8; padding: 0.5rem 0;">No ${currentLibraryTab === 'active' ? 'active' : 'completed'} books in your library.</p>`;
                 return;
             }
 
@@ -836,51 +1321,73 @@
                 const bookId = b.id;
                 const isCompleted = b.is_completed === 1 || b.is_completed === true;
                 const cover = b.cover_url || b.cover || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=500&q=80';
+                
+                let percentage = b.reading_percentage !== undefined && b.reading_percentage !== null ? b.reading_percentage : (isCompleted ? 100 : 0);
+                percentage = parseInt(percentage, 10) || 0;
+                if (isCompleted) percentage = 100;
+
+                const pageNum = (b.current_page !== undefined && b.current_page !== null && !isNaN(b.current_page)) ? b.current_page : 1;
+                const totalNum = (b.total_pages !== undefined && b.total_pages !== null && !isNaN(b.total_pages) && b.total_pages > 0) ? b.total_pages : 1;
+                
+                const pageDisplay = isCompleted ? 'Finished' : `Page ${pageNum} / ${totalNum}`;
 
                 return `
-                    <div class="book-card">
-                        <div>
-                            <img src="${cover}" alt="${title}" class="book-cover">
-                            <h3 style="color:#FFFFFF; margin-bottom: 0.2rem; font-size: 1.05rem;">${title}</h3>
-                            <p style="color:#94a3b8; font-size: 0.85rem; margin-bottom: 0.4rem;">by ${author}</p>
+                    <div class="active-book-card-featured swipe-item-active">
+                        <div class="active-book-cover-wrap">
+                            <img src="${cover}" alt="${title}" class="active-book-cover">
+                            <div class="active-book-ribbon">${isCompleted ? '✅' : '📖'}</div>
                         </div>
-                        <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;">
-                            <button class="btn-read" onclick="openBookById(${bookId})">Read Book</button>
-                            <button class="btn-complete" onclick="toggleComplete(${bookId}, ${isCompleted})">${isCompleted ? '↩ Move to Active' : '✅ Mark Complete'}</button>
-                            <button class="btn-delete-book" onclick="deleteBook(${bookId})">Delete Book</button>
+                        <div class="active-book-details">
+                            <h3 class="active-book-title">${title}</h3>
+                            <p class="active-book-author">${author}</p>
+                            
+                            <div class="active-book-stats-row">
+                                <div class="stat-badge">📖 ${pageDisplay}</div>
+                            </div>
+                            
+                            <div class="progress-bar-container">
+                                <div class="progress-bar-fill" style="width: ${percentage}%;"></div>
+                            </div>
+                            <div style="display: flex; justify-content: flex-end; font-size: 0.8rem; color: #94a3b8; font-weight: 700; margin-bottom: 0.75rem;">${percentage}%</div>
+                            
+                            <div class="active-book-actions-row">
+                                <button class="btn-continue-reading" onclick="openBookById(${bookId})">${isCompleted ? 'Read Again →' : 'Continue Reading →'}</button>
+                                <div class="icon-action-buttons">
+                                    <button class="icon-btn-circle" onclick="deleteBook(${bookId})" title="Delete Book">🗑️</button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 `;
             }).join('');
         }
 
-        function openBookById(bookId) {
+        async function openBookById(bookId) {
             const book = loadedCustomerBooks.find(b => b.id === bookId);
             if (!book) return;
 
             const title = book.title || 'Untitled Book';
             const author = book.author || 'Unknown Author';
             const url = book.heyzine_url || book.url || '';
-            const currentPage = (book.current_page !== undefined && book.current_page !== null) ? book.current_page : null;
+            const isCompleted = book.is_completed === 1 || book.is_completed === true;
 
-            openReader(bookId, url, title, author, currentPage);
-        }
-
-        async function toggleComplete(bookId, currentStatus) {
-            const newStatus = !currentStatus;
-            const res = await fetch(`/api/customer/books/${bookId}/complete`, {
-                method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json', 
-                    'Authorization': `Bearer ${getToken()}` 
-                },
-                body: JSON.stringify({ isCompleted: newStatus })
-            });
-
-            if (res.ok) {
-                loadCustomerBooks();
+            if (isCompleted) {
+                try {
+                    const res = await fetch(`/api/customer/books/${bookId}/restart`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${getToken()}` }
+                    });
+                    if (res.ok) {
+                        openReader(bookId, url, title, author, 0);
+                    } else {
+                        alert('Failed to restart book.');
+                    }
+                } catch (err) {
+                    console.error('Restart book error:', err);
+                }
             } else {
-                alert('Failed to update book status.');
+                const startPage = (book.current_page !== undefined && book.current_page !== null) ? book.current_page : null;
+                openReader(bookId, url, title, author, startPage);
             }
         }
 
@@ -950,51 +1457,10 @@
             });
             currentRendition.themes.select("dark");
 
-            currentRendition.hooks.content.register((contents) => {
-                const doc = contents.document;
-                const images = doc.querySelectorAll('img, svg');
-                const textContent = doc.body.innerText.trim();
-
-                if (images.length === 1 && textContent.length < 15) {
-                    contents.addStylesheetCss(`
-                        html, body { 
-                            background-color: #000000 !important; 
-                            margin: 0 !important; 
-                            padding: 0 !important; 
-                            width: 100% !important; 
-                            height: 100% !important; 
-                            display: flex !important;
-                            justify-content: center !important;
-                            align-items: center !important;
-                            overflow: hidden !important;
-                        }
-                        img, svg, svg image { 
-                            max-width: 100% !important; 
-                            max-height: 100% !important;
-                            width: auto !important;
-                            height: auto !important; 
-                            object-fit: contain !important; 
-                            display: block !important;
-                            margin: auto !important;
-                        }
-                    `);
-                } else {
-                    contents.addStylesheetCss(`
-                        img, svg, svg image {
-                            max-width: 100% !important;
-                            max-height: 85vh !important;
-                            height: auto !important;
-                            width: auto !important;
-                            object-fit: contain !important;
-                            display: block !important;
-                            margin: 0.5rem auto !important;
-                        }
-                    `);
-                }
-            });
-
             currentBook.ready.then(() => {
-                return currentBook.locations.generate(1000);
+                if (currentBook.locations && typeof currentBook.locations.generate === 'function') {
+                    currentBook.locations.generate(1000);
+                }
             }).catch(() => {});
 
             currentBook.loaded.navigation.then(async () => {
@@ -1015,22 +1481,32 @@
                 const progressCfi = location.start.cfi;
                 
                 let percentage = 0;
+                let currentPageNum = 1;
+                let totalPagesNum = 1;
+
                 if (currentBook.locations && currentBook.locations.total > 0) {
+                    totalPagesNum = currentBook.locations.total;
                     const pct = currentBook.locations.percentageFromCfi(progressCfi);
-                    if (!isNaN(pct)) {
+                    if (!isNaN(pct) && pct !== null) {
                         percentage = Math.round(pct * 100);
-                    }
-                } else if (currentBook.spine && currentBook.spine.length > 0) {
-                    const currentSection = currentBook.spine.get(location.start.href);
-                    if (currentSection && currentSection.index !== undefined) {
-                        percentage = Math.round((currentSection.index / currentBook.spine.length) * 100);
+                        currentPageNum = Math.max(1, Math.round(pct * totalPagesNum));
                     }
                 }
 
-                if (location.atStart) percentage = 0;
-                if (location.atEnd) percentage = 100;
+                if (percentage === 0 && location.start && currentBook.spine) {
+                    const currentSpineItem = currentBook.spine.get(location.start.cfi);
+                    if (currentSpineItem && currentSpineItem.index !== undefined && currentBook.spine.length > 0) {
+                        percentage = Math.round((currentSpineItem.index / currentBook.spine.length) * 100);
+                        currentPageNum = currentSpineItem.index + 1;
+                        totalPagesNum = currentBook.spine.length;
+                    }
+                }
 
-                document.getElementById('reader-progress-text').textContent = `${percentage}%`;
+                if (location.atStart) { percentage = 0; currentPageNum = 1; }
+                if (location.atEnd) { percentage = 100; currentPageNum = totalPagesNum || 1; }
+
+                const pageText = totalPagesNum > 0 ? `Page ${currentPageNum} of ${totalPagesNum} (${percentage}%)` : `${percentage}%`;
+                document.getElementById('reader-progress-text').textContent = pageText;
 
                 if (activeBookId && progressCfi) {
                     clearTimeout(saveTimeout);
@@ -1041,7 +1517,12 @@
                                 'Content-Type': 'application/json', 
                                 'Authorization': `Bearer ${getToken()}` 
                             },
-                            body: JSON.stringify({ page: progressCfi })
+                            body: JSON.stringify({ 
+                                page: progressCfi, 
+                                percentage: percentage, 
+                                currentPage: currentPageNum, 
+                                totalPages: totalPagesNum 
+                            })
                         }).catch(err => console.error("Auto-save page error:", err));
                     }, 1000);
                 }

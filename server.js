@@ -29,7 +29,7 @@ const transporter = nodemailer.createTransport({
     }
 });
 
-// --- DATABASE SETUP (RENDER PERSISTENT DISK SUPPORT) ---
+// --- DATABASE SETUP (RENDER PERSISTENT DISK SUPPORT) ---[cite: 2]
 let dbDirectory;
 if (process.env.RENDER) {
     dbDirectory = '/var/data';
@@ -49,14 +49,16 @@ const db = new sqlite3.Database(dbPath, (err) => {
     }
 });
 
-// --- INITIALIZE DATABASE TABLES & GUARANTEE ADMIN ACCOUNT ---
+// --- INITIALIZE DATABASE TABLES & GUARANTEE ADMIN ACCOUNT ---[cite: 2]
 db.serialize(() => {
     db.run(`CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE,
         password TEXT,
-        role TEXT DEFAULT 'customer'
+        role TEXT DEFAULT 'customer',
+        chess_elo INTEGER DEFAULT 0
     )`, async () => {
+        db.run(`ALTER TABLE users ADD COLUMN chess_elo INTEGER DEFAULT 0`, (alterErr) => {});
         db.run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON users(username);`, () => {});
 
         try {
@@ -85,12 +87,16 @@ db.serialize(() => {
         heyzine_url TEXT,
         cover_url TEXT,
         current_page INTEGER DEFAULT 1,
+        total_pages INTEGER DEFAULT 1,
+        reading_percentage INTEGER DEFAULT 0,
         is_completed BOOLEAN DEFAULT 0,
         FOREIGN KEY(user_id) REFERENCES users(id)
     )`, () => {
         db.run(`ALTER TABLE books ADD COLUMN author TEXT`, (alterErr) => {});
         db.run(`ALTER TABLE books ADD COLUMN cover_url TEXT`, (alterErr) => {});
         db.run(`ALTER TABLE books ADD COLUMN current_page INTEGER DEFAULT 1`, (alterErr) => {});
+        db.run(`ALTER TABLE books ADD COLUMN total_pages INTEGER DEFAULT 1`, (alterErr) => {});
+        db.run(`ALTER TABLE books ADD COLUMN reading_percentage INTEGER DEFAULT 0`, (alterErr) => {});
         db.run(`ALTER TABLE books ADD COLUMN is_completed BOOLEAN DEFAULT 0`, (alterErr) => {});
     });
 
@@ -116,7 +122,7 @@ db.serialize(() => {
     });
 });
 
-// --- AUTHENTICATION MIDDLEWARE ---
+// --- AUTHENTICATION MIDDLEWARE ---[cite: 2]
 function verifyToken(req, res, next) {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
@@ -135,19 +141,19 @@ function verifyToken(req, res, next) {
                 return res.status(403).json({ error: 'Session expired. Account logged in from another device.' });
             }
 
-            db.get(`SELECT username, role FROM users WHERE id = ?`, [decodedUser.id], (userErr, dbUser) => {
+            db.get(`SELECT username, role, chess_elo FROM users WHERE id = ?`, [decodedUser.id], (userErr, dbUser) => {
                 if (userErr || !dbUser) {
                     return res.status(403).json({ error: 'User no longer exists.' });
                 }
 
-                req.user = { id: decodedUser.id, username: dbUser.username, role: dbUser.role };
+                req.user = { id: decodedUser.id, username: dbUser.username, role: dbUser.role, chess_elo: dbUser.chess_elo !== undefined ? dbUser.chess_elo : 0 };
                 next();
             });
         });
     });
 }
 
-// --- SHARED LOGIN HANDLER ---
+// --- SHARED LOGIN HANDLER ---[cite: 2]
 function handleLogin(req, res) {
     let { username, password } = req.body;
     if (!username || !password) {
@@ -179,9 +185,10 @@ function handleLogin(req, res) {
                     return res.status(500).json({ error: 'Database error recording session.' });
                 }
 
+                // Updated to enforce a strict 1-device active limit
                 db.all(`SELECT id FROM sessions WHERE user_id = ? ORDER BY created_at DESC`, [user.id], (selErr, rows) => {
-                    if (!selErr && rows && rows.length > 2) {
-                        const oldSessionIds = rows.slice(2).map(r => r.id);
+                    if (!selErr && rows && rows.length > 1) {
+                        const oldSessionIds = rows.slice(1).map(r => r.id);
                         const placeholders = oldSessionIds.map(() => '?').join(',');
                         db.run(`DELETE FROM sessions WHERE id IN (${placeholders})`, oldSessionIds, () => {});
                     }
@@ -195,7 +202,7 @@ function handleLogin(req, res) {
     });
 }
 
-// --- PASSWORD CHANGE HANDLER ---
+// --- PASSWORD CHANGE HANDLER ---[cite: 2]
 function handlePasswordChange(req, res) {
     if (req.user.role !== 'admin') {
         return res.status(403).json({ error: 'Access forbidden. Admins only.' });
@@ -231,13 +238,127 @@ function handlePasswordChange(req, res) {
     });
 }
 
-// --- API ROUTES ---
+// --- API ROUTES ---[cite: 2]
 
 app.get('/api/status', (req, res) => {
     res.json({ status: '501Books server is running successfully!' });
 });
 
-// --- WORLDWIDE BOOK SEARCH PROXY (USING OPEN LIBRARY) ---
+// --- LEADERBOARD ENDPOINT ---[cite: 2]
+app.get('/api/leaderboard', verifyToken, (req, res) => {
+    const query = `
+        SELECT u.id, u.username, 
+               (SELECT COUNT(*) FROM books b WHERE b.user_id = u.id AND b.is_completed = 1) as completed_count
+        FROM users u
+        WHERE u.role != 'admin'
+        ORDER BY completed_count DESC, u.username ASC
+        LIMIT 50;
+    `;
+    db.all(query, [], (err, rows) => {
+        if (err) {
+            console.error('Failed to retrieve leaderboard:', err);
+            return res.status(500).json({ error: 'Failed to retrieve leaderboard.' });
+        }
+        res.json(rows);
+    });
+});
+
+// --- CHESS LEADERBOARD & GAME RESULT ENDPOINTS ---[cite: 2]
+app.get('/api/chess/leaderboard', verifyToken, (req, res) => {
+    const query = `
+        SELECT id, username, COALESCE(chess_elo, 0) as chess_elo
+        FROM users
+        WHERE role != 'admin'
+        ORDER BY chess_elo DESC, username ASC
+        LIMIT 50;
+    `;
+    db.all(query, [], (err, rows) => {
+        if (err) {
+            return res.status(500).json({ error: 'Failed to retrieve chess leaderboard.' });
+        }
+        res.json(rows);
+    });
+});
+
+app.post('/api/chess/game-over', verifyToken, (req, res) => {
+    const userId = req.user.id;
+    const { result } = req.body; // 1 for win, 0.5 for draw, 0 for loss
+
+    if (result === undefined || result === null) {
+        return res.status(400).json({ error: 'Result is required.' });
+    }
+
+    db.get(`SELECT chess_elo FROM users WHERE id = ?`, [userId], (err, row) => {
+        if (err || !row) {
+            return res.status(500).json({ error: 'User not found.' });
+        }
+
+        const currentElo = row.chess_elo !== undefined ? row.chess_elo : 0;
+        const BOT_ELO = 800;
+        const K = 32;
+
+        const expectedScore = 1 / (1 + Math.pow(10, (BOT_ELO - currentElo) / 400));
+        const eloDiff = Math.round(K * (result - expectedScore));
+        const newElo = currentElo + eloDiff; // Allows dropping into negative numbers
+
+        db.run(`UPDATE users SET chess_elo = ? WHERE id = ?`, [newElo, userId], (updateErr) => {
+            if (updateErr) {
+                return res.status(500).json({ error: 'Failed to update Elo rating.' });
+            }
+            res.json({ success: true, newElo, eloDiff });
+        });
+    });
+});
+
+// --- ADMIN RESET ALL USERS ELO ENDPOINT ---[cite: 2]
+app.post('/api/admin/reset-elo', verifyToken, (req, res) => {
+    if (req.user.role !== 'admin') {
+        return res.status(403).json({ error: 'Access forbidden. Admins only.' });
+    }
+
+    db.run(`UPDATE users SET chess_elo = 0`, [], function(err) {
+        if (err) {
+            return res.status(500).json({ error: 'Failed to reset user Elo ratings.' });
+        }
+        res.json({ message: 'All user Elo ratings successfully reset to 0!' });
+    });
+});
+
+// --- USER PROFILE & RANK DETAILS ENDPOINT ---[cite: 2]
+app.get('/api/me', verifyToken, (req, res) => {
+    const userId = req.user.id;
+    
+    db.get(`SELECT COUNT(*) as completed_count FROM books WHERE user_id = ? AND is_completed = 1`, [userId], (err, countRow) => {
+        const completedCount = countRow ? countRow.completed_count : 0;
+
+        const rankQuery = `
+            SELECT id FROM (
+                SELECT u.id, (SELECT COUNT(*) FROM books b WHERE b.user_id = u.id AND b.is_completed = 1) as cnt
+                FROM users u
+                WHERE u.role != 'admin'
+                ORDER BY cnt DESC, u.username ASC
+            )
+        `;
+        db.all(rankQuery, [], (rankErr, allRankedUsers) => {
+            let rank = '-';
+            if (!rankErr && allRankedUsers) {
+                const index = allRankedUsers.findIndex(u => u.id === userId);
+                if (index !== -1) {
+                    rank = index + 1;
+                }
+            }
+
+            res.json({
+                ...req.user,
+                completed_count: completedCount,
+                rank: rank,
+                chess_elo: req.user.chess_elo !== undefined ? req.user.chess_elo : 0
+            });
+        });
+    });
+});
+
+// --- WORLDWIDE BOOK SEARCH PROXY (USING OPEN LIBRARY) ---[cite: 2]
 app.get('/api/books/search', async (req, res) => {
     const query = req.query.q?.toLowerCase().trim();
     if (!query || query.length < 2) {
@@ -310,7 +431,7 @@ app.post('/api/signup', async (req, res) => {
         );
 
         db.run(
-            `INSERT INTO users (username, password, role) VALUES (?, ?, 'customer')
+            `INSERT INTO users (username, password, role, chess_elo) VALUES (?, ?, 'customer', 0)
              ON CONFLICT(username) DO UPDATE SET password = ?`,
             [trimmedFullName, hashedPassword, hashedPassword],
             function(dbErr) {
@@ -354,7 +475,7 @@ app.post('/api/signup', async (req, res) => {
     }
 });
 
-// --- BOOK REQUEST ENDPOINT (INCLUDES USER ACCOUNT EMAIL & WHATSAPP PHONE NUMBER) ---
+// --- BOOK REQUEST ENDPOINT ---[cite: 2]
 app.post('/api/request-book', verifyToken, (req, res) => {
     const { title, author, description, cover } = req.body;
     if (!title) {
@@ -364,7 +485,6 @@ app.post('/api/request-book', verifyToken, (req, res) => {
     const requestedBy = req.user.username;
     const userId = req.user.id;
 
-    // Fetch user's signup request details (email and whatsapp) from database
     db.get(`SELECT email, whatsapp FROM signup_requests WHERE fullname = ? ORDER BY created_at DESC LIMIT 1`, [requestedBy], (userErr, userRow) => {
         const userEmail = userRow && userRow.email ? userRow.email : 'Not provided / Admin created';
         const userWhatsapp = userRow && userRow.whatsapp ? userRow.whatsapp : 'Not provided';
@@ -407,10 +527,6 @@ app.post('/api/request-book', verifyToken, (req, res) => {
     });
 });
 
-app.get('/api/me', verifyToken, (req, res) => {
-    res.json(req.user);
-});
-
 app.get('/api/books', verifyToken, (req, res) => {
     db.all(`SELECT * FROM books WHERE user_id = ?`, [req.user.id], (err, rows) => {
         if (err) return res.status(500).json({ error: 'Failed to retrieve books.' });
@@ -443,16 +559,32 @@ app.post('/api/customer/books/:id/bookmark', verifyToken, (req, res) => {
         return res.status(403).json({ error: 'Access forbidden. Customers only.' });
     }
     const bookId = req.params.id;
-    const { page } = req.body;
+    const { page, percentage, currentPage, totalPages } = req.body;
     if (!page) {
         return res.status(400).json({ error: 'Page number is required.' });
     }
 
-    db.run(`UPDATE books SET current_page = ? WHERE id = ? AND user_id = ?`, [page, bookId, req.user.id], function(err) {
+    const prog = percentage !== undefined ? percentage : 0;
+    const curPageNum = currentPage !== undefined && !isNaN(currentPage) ? currentPage : 1;
+    const totPageNum = totalPages !== undefined && !isNaN(totalPages) ? totalPages : 1;
+
+    const isCompletedVal = prog >= 100 ? 1 : undefined;
+
+    let query = `UPDATE books SET current_page = ?, total_pages = ?, reading_percentage = ?`;
+    let params = [curPageNum, totPageNum, prog];
+
+    if (isCompletedVal === 1) {
+        query += `, is_completed = 1`;
+    }
+
+    query += ` WHERE id = ? AND user_id = ?`;
+    params.push(bookId, req.user.id);
+
+    db.run(query, params, function(err) {
         if (err || this.changes === 0) {
             return res.status(404).json({ error: 'Book not found or database error.' });
         }
-        res.json({ message: 'Bookmark saved successfully!' });
+        res.json({ message: 'Bookmark and progress saved successfully!' });
     });
 });
 
@@ -469,6 +601,21 @@ app.post('/api/customer/books/:id/complete', verifyToken, (req, res) => {
             return res.status(404).json({ error: 'Book not found or database error.' });
         }
         res.json({ message: 'Book status updated successfully!' });
+    });
+});
+
+app.post('/api/customer/books/:id/restart', verifyToken, (req, res) => {
+    if (req.user.role !== 'customer') {
+        return res.status(403).json({ error: 'Access forbidden. Customers only.' });
+    }
+    const bookId = req.params.id;
+
+    const query = `UPDATE books SET is_completed = 0, reading_percentage = 0, current_page = 1 WHERE id = ? AND user_id = ?`;
+    db.run(query, [bookId, req.user.id], function(err) {
+        if (err || this.changes === 0) {
+            return res.status(404).json({ error: 'Book not found or database error.' });
+        }
+        res.json({ message: 'Book restarted and moved to active library!' });
     });
 });
 
@@ -503,7 +650,7 @@ app.post('/api/admin/users', verifyToken, async (req, res) => {
 
     try {
         const hashedPassword = await bcrypt.hash(String(password).trim(), 10);
-        db.run(`INSERT INTO users (username, password, role) VALUES (?, ?, 'customer')`, [username.trim(), hashedPassword], function(err) {
+        db.run(`INSERT INTO users (username, password, role, chess_elo) VALUES (?, ?, 'customer', 0)`, [username.trim(), hashedPassword], function(err) {
             if (err) return res.status(400).json({ error: 'Username already exists.' });
             res.json({ message: 'Customer created successfully!', userId: this.lastID });
         });
