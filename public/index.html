@@ -1241,7 +1241,6 @@
                     fabGetBook.classList.add('hidden');
                     loadAdminData();
                 } else {
-                    // ENSURES CUSTOMER ROLE (AND DEFAULT USERS) ALWAYS SHOW THE CUSTOMER VIEW & SEARCH BAR
                     const badgeTitle = getRankBadge(user.completed_count || 0);
                     navBadgeContainer.innerHTML = `<span class="nav-badge-pill">#${user.rank || 1} • ${badgeTitle}</span>`;
                     
@@ -1253,7 +1252,6 @@
                 }
             } catch (err) {
                 console.error("Render app error:", err);
-                // Fallback display for safety so views don't stay hidden
                 loginView.classList.add('hidden');
                 dashboardContainer.classList.remove('hidden');
                 appHeader.classList.remove('hidden');
@@ -1392,13 +1390,24 @@
                 btn.disabled = false;
             }
         }
+
         async function loadCustomerBooks() {
             try {
                 const res = await fetch('/api/customer/books', { headers: { 'Authorization': `Bearer ${getToken()}` } });
                 const books = await res.json();
                 loadedCustomerBooks = books || [];
+                // Save locally to localStorage for offline access
+                localStorage.setItem('cached_customer_books', JSON.stringify(loadedCustomerBooks));
             } catch (err) {
-                console.warn('Network offline, using existing library list if loaded.');
+                console.warn('Network offline, loading library list from local cache.');
+                const cachedBooks = localStorage.getItem('cached_customer_books');
+                if (cachedBooks) {
+                    try {
+                        loadedCustomerBooks = JSON.parse(cachedBooks);
+                    } catch (e) {
+                        loadedCustomerBooks = [];
+                    }
+                }
             }
 
             const grid = document.getElementById('customer-books-grid');
@@ -1641,6 +1650,17 @@
                             totalPages: totalPagesNum 
                         };
 
+                        // --- LOCAL-FIRST SAVING STRATEGY FOR MOBILE ---
+                        const localBook = loadedCustomerBooks.find(b => b.id === activeBookId);
+                        if (localBook) {
+                            localBook.current_page = progressCfi;
+                            localBook.reading_percentage = percentage;
+                            localStorage.setItem('cached_customer_books', JSON.stringify(loadedCustomerBooks));
+                        }
+
+                        // Queue locally for background sync
+                        await queueOfflineBookmark(activeBookId, bookmarkPayload);
+
                         try {
                             const res = await fetch(`/api/customer/books/${activeBookId}/bookmark`, {
                                 method: 'POST',
@@ -1652,8 +1672,7 @@
                             });
                             if (!res.ok) throw new Error('Network error');
                         } catch (err) {
-                            console.warn('Offline detected. Queuing bookmark progress locally...');
-                            await queueOfflineBookmark(activeBookId, bookmarkPayload);
+                            console.warn('Offline detected. Progress successfully secured locally and queued for sync.');
                         }
                     }, 1000);
                 }
