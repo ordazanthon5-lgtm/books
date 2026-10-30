@@ -1519,7 +1519,7 @@
                 return;
             }
 
-            // FORCE DISPLAY: Inline styles added to guarantee visibility on offline cold starts
+            // OFFLINE-SAFE COVER FALLBACK: Added onerror to swap broken image URLs with a clean CSS fallback block if offline
             grid.innerHTML = filteredBooks.map(b => {
                 const title = b.title || 'Untitled Book';
                 const author = b.author || 'Unknown Author';
@@ -1537,7 +1537,7 @@
                 return `
                     <div class="active-book-card-featured swipe-item-active" data-book-id="${bookId}" style="display: flex !important; visibility: visible !important; opacity: 1 !important;">
                         <div class="active-book-cover-wrap">
-                            <img src="${cover}" alt="${title}" class="active-book-cover">
+                            <img src="${cover}" alt="${title}" class="active-book-cover" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'120\' height=\'160\'><rect width=\'100%\' height=\'100%\' fill=\'%231e293b\'/><text x=\'50%\' y=\'50%\' dominant-baseline=\'middle\' text-anchor=\'middle\' fill=\'%2394a3b8\' font-size=\'14\'>501Books</text></svg>';">
                             <div class="active-book-ribbon">${isCompleted ? '✅' : '📖'}</div>
                         </div>
                         <div class="active-book-details">
