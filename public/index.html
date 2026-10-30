@@ -440,7 +440,7 @@
                         <div id="global-search-dropdown" class="modern-search-dropdown"></div>
                     </div>
                 </div>
-
+                
                 <div class="library-tabs">
                     <button id="tab-active-books" class="tab-btn active" onclick="switchLibraryTab('active')">📖 My Library</button>
                     <button id="tab-completed-books" class="tab-btn" onclick="switchLibraryTab('completed')">✅ Completed Books</button>
@@ -612,7 +612,45 @@
             Ask For Help
         </a>
     </main>
-    <script>
+    <script type="module">
+        import { openDB, saveBookOffline, getOfflineBook, isBookDownloaded, queueOfflineBookmark, getAndClearSyncQueue } from './db.js';
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(() => console.log('Service Worker registered successfully!'))
+                    .catch((err) => console.log('Service Worker registration failed:', err));
+            });
+        }
+
+        // --- AUTOMATIC OFFLINE SYNC QUEUE LISTENER ---
+        window.addEventListener('online', async () => {
+            console.log('Device back online. Syncing offline reading progress...');
+            try {
+                const pendingSyncs = await getAndClearSyncQueue();
+                if (pendingSyncs && pendingSyncs.length > 0) {
+                    for (const item of pendingSyncs) {
+                        await fetch(`/api/customer/books/${item.bookId}/bookmark`, {
+                            method: 'POST',
+                            headers: { 
+                                'Content-Type': 'application/json', 
+                                'Authorization': `Bearer ${getToken()}` 
+                            },
+                            body: JSON.stringify({ 
+                                page: item.page, 
+                                percentage: item.percentage, 
+                                currentPage: item.currentPage, 
+                                totalPages: item.totalPages 
+                            })
+                        });
+                    }
+                    console.log('Successfully synced all offline reading progress!');
+                }
+            } catch (err) {
+                console.error('Failed to sync offline bookmark queue:', err);
+            }
+        });
+
         function getToken() { return localStorage.getItem('token'); }
         function showAlert(elId, msg, type = 'error') {
             document.getElementById(elId).innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
@@ -1180,38 +1218,48 @@
                 return;
             }
 
-            const res = await fetch('/api/me', { headers: { 'Authorization': `Bearer ${token}` } });
-            if (!res.ok) return logout();
+            try {
+                const res = await fetch('/api/me', { headers: { 'Authorization': `Bearer ${token}` } });
+                if (!res.ok) return logout();
 
-            const user = await res.json();
-            loginView.classList.add('hidden');
-            dashboardContainer.classList.remove('hidden');
-            appHeader.classList.remove('hidden');
-            
-            document.getElementById('nav-username').textContent = user.username;
-            currentUserElo = user.chess_elo !== undefined ? user.chess_elo : 0;
-            const eloDisp = document.getElementById('chess-user-elo-display');
-            if (eloDisp) eloDisp.textContent = `Your Elo: ${currentUserElo}`;
+                const user = await res.json();
+                loginView.classList.add('hidden');
+                dashboardContainer.classList.remove('hidden');
+                appHeader.classList.remove('hidden');
+                
+                document.getElementById('nav-username').textContent = user.username;
+                currentUserElo = user.chess_elo !== undefined ? user.chess_elo : 0;
+                const eloDisp = document.getElementById('chess-user-elo-display');
+                if (eloDisp) eloDisp.textContent = `Your Elo: ${currentUserElo}`;
 
-            const navBadgeContainer = document.getElementById('nav-badge-container');
-            if (user.role === 'customer') {
-                const badgeTitle = getRankBadge(user.completed_count || 0);
-                navBadgeContainer.innerHTML = `<span class="nav-badge-pill">#${user.rank} • ${badgeTitle}</span>`;
-            } else {
-                navBadgeContainer.innerHTML = `<span class="nav-badge-pill" style="background: rgba(255,255,255,0.1); color: #FFFFFF; border-color: rgba(255,255,255,0.2);">🛡️ Admin</span>`;
-            }
-
-            if (user.role === 'admin') {
-                document.getElementById('admin-view').classList.remove('hidden');
-                document.getElementById('customer-view').classList.add('hidden');
-                document.getElementById('reader-view').classList.add('hidden');
-                fabGetBook.classList.add('hidden');
-                loadAdminData();
-            } else {
+                const navBadgeContainer = document.getElementById('nav-badge-container');
+                if (user.role === 'admin') {
+                    navBadgeContainer.innerHTML = `<span class="nav-badge-pill" style="background: rgba(255,255,255,0.1); color: #FFFFFF; border-color: rgba(255,255,255,0.2);">🛡️ Admin</span>`;
+                    document.getElementById('admin-view').classList.remove('hidden');
+                    document.getElementById('customer-view').classList.add('hidden');
+                    document.getElementById('reader-view').classList.add('hidden');
+                    fabGetBook.classList.add('hidden');
+                    loadAdminData();
+                } else {
+                    // ENSURES CUSTOMER ROLE (AND DEFAULT USERS) ALWAYS SHOW THE CUSTOMER VIEW & SEARCH BAR
+                    const badgeTitle = getRankBadge(user.completed_count || 0);
+                    navBadgeContainer.innerHTML = `<span class="nav-badge-pill">#${user.rank || 1} • ${badgeTitle}</span>`;
+                    
+                    document.getElementById('customer-view').classList.remove('hidden');
+                    document.getElementById('admin-view').classList.add('hidden');
+                    document.getElementById('reader-view').classList.add('hidden');
+                    fabGetBook.classList.remove('hidden');
+                    switchLibraryTab('active');
+                }
+            } catch (err) {
+                console.error("Render app error:", err);
+                // Fallback display for safety so views don't stay hidden
+                loginView.classList.add('hidden');
+                dashboardContainer.classList.remove('hidden');
+                appHeader.classList.remove('hidden');
                 document.getElementById('customer-view').classList.remove('hidden');
                 document.getElementById('admin-view').classList.add('hidden');
                 document.getElementById('reader-view').classList.add('hidden');
-                fabGetBook.classList.remove('hidden');
                 switchLibraryTab('active');
             }
         }
@@ -1315,10 +1363,44 @@
             }, 7000);
         }
 
+        // --- DOWNLOAD BOOK FOR OFFLINE HANDLER ---
+        async function handleBookDownload(bookId, epubUrl, title) {
+            const btn = document.getElementById(`download-btn-${bookId}`);
+            if (!btn) return;
+
+            btn.innerText = 'Downloading...';
+            btn.disabled = true;
+
+            try {
+                const response = await fetch(epubUrl);
+                if (!response.ok) throw new Error('Network error fetching e-book file.');
+
+                const blob = await response.blob();
+                await saveBookOffline({
+                    id: bookId,
+                    title: title,
+                    fileBlob: blob,
+                    downloadedAt: new Date().toISOString()
+                });
+
+                btn.innerText = '✅ Offline Ready';
+                btn.style.background = '#28a745';
+                btn.disabled = true;
+            } catch (err) {
+                console.error('Download error:', err);
+                btn.innerText = '❌ Failed, try again';
+                btn.disabled = false;
+            }
+        }
         async function loadCustomerBooks() {
-            const res = await fetch('/api/customer/books', { headers: { 'Authorization': `Bearer ${getToken()}` } });
-            const books = await res.json();
-            loadedCustomerBooks = books || [];
+            try {
+                const res = await fetch('/api/customer/books', { headers: { 'Authorization': `Bearer ${getToken()}` } });
+                const books = await res.json();
+                loadedCustomerBooks = books || [];
+            } catch (err) {
+                console.warn('Network offline, using existing library list if loaded.');
+            }
+
             const grid = document.getElementById('customer-books-grid');
 
             const filteredBooks = loadedCustomerBooks.filter(b => {
@@ -1347,13 +1429,16 @@
                 const bookId = b.id;
                 const isCompleted = b.is_completed === 1 || b.is_completed === true;
                 const cover = b.cover_url || b.cover || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=500&q=80';
-                
+                const url = b.heyzine_url || b.url || '';
+
                 let percentage = b.reading_percentage !== undefined && b.reading_percentage !== null ? b.reading_percentage : (isCompleted ? 100 : 0);
                 percentage = parseInt(percentage, 10) || 0;
                 if (isCompleted) percentage = 100;
 
+                const safeTitle = title.replace(/'/g, "\\'");
+
                 return `
-                    <div class="active-book-card-featured swipe-item-active">
+                    <div class="active-book-card-featured swipe-item-active" data-book-id="${bookId}">
                         <div class="active-book-cover-wrap">
                             <img src="${cover}" alt="${title}" class="active-book-cover">
                             <div class="active-book-ribbon">${isCompleted ? '✅' : '📖'}</div>
@@ -1369,6 +1454,7 @@
                             
                             <div class="active-book-actions-row">
                                 <button class="btn-continue-reading" onclick="openBookById(${bookId})">${isCompleted ? 'Read Again →' : 'Continue Reading →'}</button>
+                                <button id="download-btn-${bookId}" class="btn-secondary-dark" style="margin-top: 0; padding: 0.75rem 0.9rem; font-size: 0.85rem; width: auto;" onclick="handleBookDownload(${bookId}, '${url}', '${safeTitle}')">⬇️ Download</button>
                                 <div class="icon-action-buttons">
                                     <button class="icon-btn-circle" onclick="deleteBook(${bookId})" title="Delete Book">🗑️</button>
                                 </div>
@@ -1377,9 +1463,20 @@
                     </div>
                 `;
             }).join('');
+
+            filteredBooks.forEach(async (b) => {
+                const downloaded = await isBookDownloaded(b.id);
+                if (downloaded) {
+                    const btn = document.getElementById(`download-btn-${b.id}`);
+                    if (btn) {
+                        btn.innerText = '✅ Offline Ready';
+                        btn.style.background = '#28a745';
+                        btn.disabled = true;
+                    }
+                }
+            });
         }
 
-        // --- FIXED openBookById passing exact saved CFI string ---
         async function openBookById(bookId) {
             const book = loadedCustomerBooks.find(b => b.id === bookId);
             if (!book) return;
@@ -1391,18 +1488,14 @@
 
             if (isCompleted) {
                 try {
-                    const res = await fetch(`/api/customer/books/${bookId}/restart`, {
+                    await fetch(`/api/customer/books/${bookId}/restart`, {
                         method: 'POST',
                         headers: { 'Authorization': `Bearer ${getToken()}` }
                     });
-                    if (res.ok) {
-                        openReader(bookId, url, title, author, null);
-                    } else {
-                        alert('Failed to restart book.');
-                    }
                 } catch (err) {
-                    console.error('Restart book error:', err);
+                    console.warn('Network offline during restart. Opening locally.');
                 }
+                openReader(bookId, url, title, author, null);
             } else {
                 const startCfi = (book.current_page && typeof book.current_page === 'string' && book.current_page.startsWith('epubcfi')) 
                     ? book.current_page 
@@ -1414,16 +1507,16 @@
         async function deleteBook(bookId) {
             if (!confirm('Are you sure you want to remove this book from your library?')) return;
 
-            const res = await fetch(`/api/customer/books/${bookId}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${getToken()}` }
-            });
-
-            if (res.ok) {
-                loadCustomerBooks();
-            } else {
-                alert('Failed to delete book.');
+            try {
+                await fetch(`/api/customer/books/${bookId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${getToken()}` }
+                });
+            } catch (err) {
+                console.warn('Network offline while deleting book.');
             }
+
+            loadCustomerBooks();
         }
 
         let activeBookId = null;
@@ -1432,8 +1525,7 @@
         let saveTimeout = null;
         let tipTimeout = null;
 
-        // --- FIXED openReader accepting exact startCfi string ---
-        function openReader(bookId, url, title, author, startCfi) {
+        async function openReader(bookId, url, title, author, startCfi) {
             activeBookId = bookId;
             document.body.classList.add('reader-mode');
             document.getElementById('customer-view').classList.add('hidden');
@@ -1460,7 +1552,17 @@
             document.getElementById('epub-viewer').innerHTML = '';
             document.getElementById('reader-progress-text').textContent = '0%';
 
-            currentBook = ePub(url);
+            let bookSource = url;
+            try {
+                const offlineBook = await getOfflineBook(bookId);
+                if (offlineBook && offlineBook.fileBlob) {
+                    bookSource = await offlineBook.fileBlob.arrayBuffer();
+                }
+            } catch (err) {
+                console.warn('Failed reading from IndexedDB, falling back to URL source:', err);
+            }
+
+            currentBook = ePub(bookSource);
             currentRendition = currentBook.renderTo("epub-viewer", {
                 width: "100%",
                 height: "100%",
@@ -1531,20 +1633,28 @@
 
                 if (activeBookId && progressCfi) {
                     clearTimeout(saveTimeout);
-                    saveTimeout = setTimeout(() => {
-                        fetch(`/api/customer/books/${activeBookId}/bookmark`, {
-                            method: 'POST',
-                            headers: { 
-                                'Content-Type': 'application/json', 
-                                'Authorization': `Bearer ${getToken()}` 
-                            },
-                            body: JSON.stringify({ 
-                                page: progressCfi, 
-                                percentage: percentage, 
-                                currentPage: currentPageNum, 
-                                totalPages: totalPagesNum 
-                            })
-                        }).catch(err => console.error("Auto-save page error:", err));
+                    saveTimeout = setTimeout(async () => {
+                        const bookmarkPayload = { 
+                            page: progressCfi, 
+                            percentage: percentage, 
+                            currentPage: currentPageNum, 
+                            totalPages: totalPagesNum 
+                        };
+
+                        try {
+                            const res = await fetch(`/api/customer/books/${activeBookId}/bookmark`, {
+                                method: 'POST',
+                                headers: { 
+                                    'Content-Type': 'application/json', 
+                                    'Authorization': `Bearer ${getToken()}` 
+                                },
+                                body: JSON.stringify(bookmarkPayload)
+                            });
+                            if (!res.ok) throw new Error('Network error');
+                        } catch (err) {
+                            console.warn('Offline detected. Queuing bookmark progress locally...');
+                            await queueOfflineBookmark(activeBookId, bookmarkPayload);
+                        }
                     }, 1000);
                 }
             });
@@ -1574,6 +1684,26 @@
             document.getElementById('epub-viewer').innerHTML = '';
             renderApp();
         }
+
+        // Attach global window handlers
+        window.handleBookDownload = handleBookDownload;
+        window.openBookById = openBookById;
+        window.deleteBook = deleteBook;
+        window.switchLibraryTab = switchLibraryTab;
+        window.openSignUpModal = openSignUpModal;
+        window.closeSignUpModal = closeSignUpModal;
+        window.openBookRequestModal = openBookRequestModal;
+        window.closeBookRequestModal = closeBookRequestModal;
+        window.submitBookRequest = submitBookRequest;
+        window.openWhatsAppGetBook = openWhatsAppGetBook;
+        window.logout = logout;
+        window.prevPage = prevPage;
+        window.nextPage = nextPage;
+        window.toggleReaderOverlay = toggleReaderOverlay;
+        window.closeReader = closeReader;
+        window.resetAllUserElos = resetAllUserElos;
+        window.changeChessDifficulty = changeChessDifficulty;
+        window.resetChessGame = resetChessGame;
 
         renderApp();
     </script>

@@ -1,0 +1,69 @@
+// public/sw.js
+
+const CACHE_NAME = '501books-static-v2';
+const ASSETS_TO_CACHE = [
+  '/',
+  '/index.html',
+  'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',
+  'https://cdn.jsdelivr.net/npm/epubjs/dist/epub.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js',
+  'https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js',
+  'https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css'
+];
+
+// Install Event: Cache app shell and scripts
+self.addEventListener('install', (e) => {
+  e.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      return Promise.all(
+        ASSETS_TO_CACHE.map((url) => {
+          return cache.add(new Request(url, { mode: 'no-cors' })).catch((err) => {
+            console.warn('Failed to cache asset during install:', url, err);
+          });
+        })
+      );
+    })
+  );
+  self.skipWaiting();
+});
+
+// Activate Event: Clean up old caches
+self.addEventListener('activate', (e) => {
+  e.waitUntil(
+    caches.keys().then((keys) => {
+      return Promise.all(
+        keys.map((key) => {
+          if (key !== CACHE_NAME) {
+            return caches.delete(key);
+          }
+        })
+      );
+    })
+  );
+  self.clients.claim();
+});
+
+// Fetch Event: Serve cached assets offline, let API calls pass through
+self.addEventListener('fetch', (e) => {
+  const url = new URL(e.request.url);
+
+  // Bypass service worker for backend API endpoints
+  if (url.pathname.startsWith('/api/')) {
+    return;
+  }
+
+  e.respondWith(
+    caches.match(e.request).then((cachedResponse) => {
+      if (cachedResponse) {
+        return cachedResponse;
+      }
+      return fetch(e.request).catch(() => {
+        // Fallback to index.html for navigation requests if offline
+        if (e.request.mode === 'navigate') {
+          return caches.match('/');
+        }
+      });
+    })
+  );
+});
