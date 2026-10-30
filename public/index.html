@@ -623,7 +623,6 @@
             });
         }
 
-        // --- AUTOMATIC OFFLINE SYNC QUEUE LISTENER ---
         window.addEventListener('online', async () => {
             console.log('Device back online. Syncing offline reading progress...');
             try {
@@ -654,7 +653,6 @@
         function getToken() { 
             let token = localStorage.getItem('token');
             if (!token) {
-                // Fallback check in case localStorage was isolated or cleared by the wrapper on boot
                 token = localStorage.getItem('backup_token') || sessionStorage.getItem('token');
             }
             return token; 
@@ -849,7 +847,7 @@
             const data = await res.json();
             if (res.ok) {
                 localStorage.setItem('token', data.token);
-                localStorage.setItem('backup_token', data.token); // Secure backup for offline wrapper boots
+                localStorage.setItem('backup_token', data.token);
                 renderApp();
             } else showAlert('login-alert', data.error);
         });
@@ -1245,7 +1243,6 @@
             const appHeader = document.getElementById('app-header');
             const fabGetBook = document.getElementById('fab-get-book');
 
-            // 1. If no token, show login screen and hide everything else
             if (!token) {
                 loginView.classList.remove('hidden');
                 dashboardContainer.classList.add('hidden');
@@ -1257,7 +1254,6 @@
                 return;
             }
 
-            // 2. TOKEN EXISTS: Instantly load cached user profile and paint UI (Offline-First!)
             let cachedUser = { username: "Reader", role: "customer", completed_count: 0, rank: 1 };
             const savedProfile = localStorage.getItem('cached_user_profile');
             if (savedProfile) {
@@ -1291,19 +1287,14 @@
                 switchLibraryTab('active');
             }
 
-            // 3. Background Sync: Fetch fresh data from server if online (SAFE FROM 403 LOOPS)
             try {
                 const res = await fetch('/api/me', { headers: { 'Authorization': `Bearer ${token}` } });
                 
                 if (res.status === 401 || res.status === 403) {
-                    // Only logout if token is explicitly dead AND we are online / confirmed invalid token, 
-                    // but to prevent loop, we only clear tokens on explicit manual logout or hard auth failure.
-                    // Let's keep the app open on cache if offline, but if 403 happens due to bad token, 
-                    // we check if navigator.onLine is true before forcing logout.
                     if (navigator.onLine) {
                         return logout();
                     }
-                    return; // Ignore 403 if offline to prevent loop!
+                    return;
                 }
 
                 if (res.ok) {
@@ -1430,7 +1421,6 @@
             }, 7000);
         }
 
-        // --- DOWNLOAD BOOK FOR OFFLINE HANDLER ---
         async function handleBookDownload(bookId, epubUrl, title) {
             const btn = document.getElementById(`download-btn-${bookId}`);
             if (!btn) return;
@@ -1475,7 +1465,6 @@
         }
 
         async function loadCustomerBooks() {
-            // 1. INSTANT LOCAL CACHE LOAD (Ensures cards render immediately offline)
             const cachedBooks = localStorage.getItem('cached_customer_books');
             if (cachedBooks) {
                 try {
@@ -1488,7 +1477,6 @@
                 }
             }
 
-            // 2. BACKGROUND NETWORK FETCH
             try {
                 const res = await fetch('/api/customer/books', { headers: { 'Authorization': `Bearer ${getToken()}` } });
                 if (res.ok) {
@@ -1507,14 +1495,17 @@
             }
 
             const grid = document.getElementById('customer-books-grid');
+            if (!grid) return;
 
             const filteredBooks = loadedCustomerBooks.filter(b => {
                 const isCompleted = b.is_completed === 1 || b.is_completed === true;
                 return currentLibraryTab === 'completed' ? isCompleted : !isCompleted;
             });
 
-            document.getElementById('library-section-title').textContent = 
-                currentLibraryTab === 'active' ? `Active Books (${filteredBooks.length})` : `Completed Books (${filteredBooks.length})`;
+            const titleEl = document.getElementById('library-section-title');
+            if (titleEl) {
+                titleEl.textContent = currentLibraryTab === 'active' ? `Active Books (${filteredBooks.length})` : `Completed Books (${filteredBooks.length})`;
+            }
 
             if (currentLibraryTab === 'active' && filteredBooks.length > 1) {
                 triggerSwipeNotice();
@@ -1528,6 +1519,7 @@
                 return;
             }
 
+            // FORCE DISPLAY: Inline styles added to guarantee visibility on offline cold starts
             grid.innerHTML = filteredBooks.map(b => {
                 const title = b.title || 'Untitled Book';
                 const author = b.author || 'Unknown Author';
@@ -1543,7 +1535,7 @@
                 const safeTitle = title.replace(/'/g, "\\'");
 
                 return `
-                    <div class="active-book-card-featured swipe-item-active" data-book-id="${bookId}">
+                    <div class="active-book-card-featured swipe-item-active" data-book-id="${bookId}" style="display: flex !important; visibility: visible !important; opacity: 1 !important;">
                         <div class="active-book-cover-wrap">
                             <img src="${cover}" alt="${title}" class="active-book-cover">
                             <div class="active-book-ribbon">${isCompleted ? '✅' : '📖'}</div>
@@ -1748,7 +1740,6 @@
                             totalPages: totalPagesNum 
                         };
 
-                        // --- LOCAL-FIRST SAVING STRATEGY FOR MOBILE ---
                         const localBook = loadedCustomerBooks.find(b => b.id === activeBookId);
                         if (localBook) {
                             localBook.current_page = progressCfi;
@@ -1756,7 +1747,6 @@
                             localStorage.setItem('cached_customer_books', JSON.stringify(loadedCustomerBooks));
                         }
 
-                        // Queue locally for background sync
                         await queueOfflineBookmark(activeBookId, bookmarkPayload);
 
                         try {
@@ -1802,7 +1792,6 @@
             renderApp();
         }
 
-        // Attach global window handlers
         window.handleBookDownload = handleBookDownload;
         window.openBookById = openBookById;
         window.deleteBook = deleteBook;
