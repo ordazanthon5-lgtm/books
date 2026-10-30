@@ -854,7 +854,13 @@
             } else showAlert('login-alert', data.error);
         });
 
-        function logout() { localStorage.removeItem('token'); renderApp(); }
+        function logout() { 
+            localStorage.removeItem('token'); 
+            localStorage.removeItem('backup_token');
+            localStorage.removeItem('cached_user_profile');
+            localStorage.removeItem('cached_customer_books');
+            renderApp(); 
+        }
 
         let currentLibraryTab = 'active';
 
@@ -1285,21 +1291,25 @@
                 switchLibraryTab('active');
             }
 
-            // 3. Background Sync: Fetch fresh data from server if online
+            // 3. Background Sync: Fetch fresh data from server if online (SAFE FROM 403 LOOPS)
             try {
                 const res = await fetch('/api/me', { headers: { 'Authorization': `Bearer ${token}` } });
                 
                 if (res.status === 401 || res.status === 403) {
-                    return logout();
+                    // Only logout if token is explicitly dead AND we are online / confirmed invalid token, 
+                    // but to prevent loop, we only clear tokens on explicit manual logout or hard auth failure.
+                    // Let's keep the app open on cache if offline, but if 403 happens due to bad token, 
+                    // we check if navigator.onLine is true before forcing logout.
+                    if (navigator.onLine) {
+                        return logout();
+                    }
+                    return; // Ignore 403 if offline to prevent loop!
                 }
 
                 if (res.ok) {
                     const user = await res.json();
-                    
-                    // Cache updated user profile locally
                     localStorage.setItem('cached_user_profile', JSON.stringify(user));
 
-                    // Update UI elements with live data
                     document.getElementById('nav-username').textContent = user.username;
                     currentUserElo = user.chess_elo !== undefined ? user.chess_elo : 0;
                     if (eloDisp) eloDisp.textContent = `Your Elo: ${currentUserElo}`;
@@ -1465,7 +1475,7 @@
         }
 
         async function loadCustomerBooks() {
-            // 1. INSTANT LOCAL CACHE LOAD
+            // 1. INSTANT LOCAL CACHE LOAD (Ensures cards render immediately offline)
             const cachedBooks = localStorage.getItem('cached_customer_books');
             if (cachedBooks) {
                 try {
@@ -1492,7 +1502,6 @@
                 console.warn('Network offline, using cached library list.');
             }
 
-            // SAFETY GUARD: Ensure loadedCustomerBooks is always a valid array to prevent .filter crashes
             if (!Array.isArray(loadedCustomerBooks)) {
                 loadedCustomerBooks = [];
             }
