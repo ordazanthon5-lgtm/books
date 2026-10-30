@@ -1463,26 +1463,22 @@
         }
 
         async function loadCustomerBooks() {
-            // 1. Instantly try loading from local cache first so offline works smoothly without blocking
-            const cachedBooks = localStorage.getItem('cached_customer_books');
-            if (cachedBooks) {
-                try {
-                    loadedCustomerBooks = JSON.parse(cachedBooks);
-                } catch (e) {
-                    loadedCustomerBooks = [];
-                }
-            }
-
-            // 2. Try fetching fresh list from network in background
             try {
                 const res = await fetch('/api/customer/books', { headers: { 'Authorization': `Bearer ${getToken()}` } });
-                if (res.ok) {
-                    const books = await res.json();
-                    loadedCustomerBooks = books || [];
-                    localStorage.setItem('cached_customer_books', JSON.stringify(loadedCustomerBooks));
-                }
+                const books = await res.json();
+                loadedCustomerBooks = books || [];
+                // Save locally to localStorage for offline access
+                localStorage.setItem('cached_customer_books', JSON.stringify(loadedCustomerBooks));
             } catch (err) {
-                console.warn('Network offline, using cached library list.');
+                console.warn('Network offline, loading library list from local cache.');
+                const cachedBooks = localStorage.getItem('cached_customer_books');
+                if (cachedBooks) {
+                    try {
+                        loadedCustomerBooks = JSON.parse(cachedBooks);
+                    } catch (e) {
+                        loadedCustomerBooks = [];
+                    }
+                }
             }
 
             const grid = document.getElementById('customer-books-grid');
@@ -1549,17 +1545,15 @@
             }).join('');
 
             filteredBooks.forEach(async (b) => {
-                try {
-                    const downloaded = await isBookDownloaded(b.id);
-                    if (downloaded) {
-                        const btn = document.getElementById(`download-btn-${b.id}`);
-                        if (btn) {
-                            btn.innerText = '✅ Offline Ready';
-                            btn.style.background = '#28a745';
-                            btn.disabled = true;
-                        }
+                const downloaded = await isBookDownloaded(b.id);
+                if (downloaded) {
+                    const btn = document.getElementById(`download-btn-${b.id}`);
+                    if (btn) {
+                        btn.innerText = '✅ Offline Ready';
+                        btn.style.background = '#28a745';
+                        btn.disabled = true;
                     }
-                } catch (e) {}
+                }
             });
         }
 
