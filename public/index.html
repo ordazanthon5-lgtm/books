@@ -612,7 +612,7 @@
             Ask For Help
         </a>
     </main>
-    <script type="module">
+ <script type="module">
         import { openDB, saveBookOffline, getOfflineBook, isBookDownloaded, queueOfflineBookmark, getAndClearSyncQueue } from './db.js';
 
         if ('serviceWorker' in navigator) {
@@ -900,6 +900,35 @@
             return "🌱 Fresh-Ink";
         }
 
+        function renderLeaderboardTable(data, tbody) {
+            if (!data.length) {
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #94a3b8; padding: 2rem;">No ranked users yet.</td></tr>`;
+                return;
+            }
+
+            const topFive = data.slice(0, 5);
+
+            tbody.innerHTML = topFive.map((user, index) => {
+                const rank = index + 1;
+                const count = user.completed_count || 0;
+                const badge = getRankBadge(count);
+
+                let medalIcon = `<span class="rank-number">#${rank}</span>`;
+                if (rank === 1) medalIcon = `<span class="rank-number" style="color: #FFD700;">🥇 1</span>`;
+                else if (rank === 2) medalIcon = `<span class="rank-number" style="color: #C0C0C0;">🥈 2</span>`;
+                else if (rank === 3) medalIcon = `<span class="rank-number" style="color: #CD7F32;">🥉 3</span>`;
+
+                return `
+                    <tr>
+                        <td>${medalIcon}</td>
+                        <td style="font-weight: 700; color: #FFFFFF;">${user.username}</td>
+                        <td>${count}</td>
+                        <td><span class="rank-badge-pill">${badge}</span></td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
         async function loadLeaderboard() {
             const tbody = document.getElementById('leaderboard-tbody');
             tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #94a3b8; padding: 2rem;">Loading leaderboard...</td></tr>`;
@@ -910,40 +939,21 @@
                 });
                 const data = await res.json();
 
-                if (!res.ok) {
-                    tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #EF233C; padding: 2rem;">${data.error || 'Failed to load leaderboard.'}</td></tr>`;
-                    return;
-                }
+                if (!res.ok) throw new Error(data.error || 'Failed to load leaderboard.');
 
-                if (!data.length) {
-                    tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #94a3b8; padding: 2rem;">No ranked users yet.</td></tr>`;
-                    return;
-                }
-
-                const topFive = data.slice(0, 5);
-
-                tbody.innerHTML = topFive.map((user, index) => {
-                    const rank = index + 1;
-                    const count = user.completed_count || 0;
-                    const badge = getRankBadge(count);
-
-                    let medalIcon = `<span class="rank-number">#${rank}</span>`;
-                    if (rank === 1) medalIcon = `<span class="rank-number" style="color: #FFD700;">🥇 1</span>`;
-                    else if (rank === 2) medalIcon = `<span class="rank-number" style="color: #C0C0C0;">🥈 2</span>`;
-                    else if (rank === 3) medalIcon = `<span class="rank-number" style="color: #CD7F32;">🥉 3</span>`;
-
-                    return `
-                        <tr>
-                            <td>${medalIcon}</td>
-                            <td style="font-weight: 700; color: #FFFFFF;">${user.username}</td>
-                            <td>${count}</td>
-                            <td><span class="rank-badge-pill">${badge}</span></td>
-                        </tr>
-                    `;
-                }).join('');
+                localStorage.setItem('cached_leaderboard', JSON.stringify(data));
+                renderLeaderboardTable(data, tbody);
             } catch (err) {
-                console.error('Error loading leaderboard:', err);
-                tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #EF233C; padding: 2rem;">Network error loading leaderboard.</td></tr>`;
+                console.warn('Network offline, loading leaderboard from cache.');
+                const cached = localStorage.getItem('cached_leaderboard');
+                if (cached) {
+                    try {
+                        const data = JSON.parse(cached);
+                        renderLeaderboardTable(data, tbody);
+                        return;
+                    } catch (e) {}
+                }
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #EF233C; padding: 2rem;">Offline: No cached leaderboard available.</td></tr>`;
             }
         }
 
@@ -1155,6 +1165,24 @@
             }
         }
 
+        function renderChessLeaderboardTable(data, tbody) {
+            tbody.innerHTML = data.map((user, idx) => {
+                const rank = idx + 1;
+                let medalIcon = `<span class="rank-number">#${rank}</span>`;
+                if (rank === 1) medalIcon = `<span class="rank-number" style="color: #FFD700;">🥇 1</span>`;
+                else if (rank === 2) medalIcon = `<span class="rank-number" style="color: #C0C0C0;">🥈 2</span>`;
+                else if (rank === 3) medalIcon = `<span class="rank-number" style="color: #CD7F32;">🥉 3</span>`;
+
+                return `
+                    <tr>
+                        <td>${medalIcon}</td>
+                        <td style="font-weight: 700; color: #FFFFFF;">${user.username}</td>
+                        <td><span class="rank-badge-pill">${user.chess_elo !== undefined ? user.chess_elo : 0} Elo</span></td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
         async function loadChessLeaderboard() {
             const tbody = document.getElementById('chess-leaderboard-tbody');
             if (!tbody) return;
@@ -1165,27 +1193,22 @@
                 });
                 const data = await res.json();
                 if (res.ok && data.length) {
-                    tbody.innerHTML = data.map((user, idx) => {
-                        const rank = idx + 1;
-                        let medalIcon = `<span class="rank-number">#${rank}</span>`;
-                        if (rank === 1) medalIcon = `<span class="rank-number" style="color: #FFD700;">🥇 1</span>`;
-                        else if (rank === 2) medalIcon = `<span class="rank-number" style="color: #C0C0C0;">🥈 2</span>`;
-                        else if (rank === 3) medalIcon = `<span class="rank-number" style="color: #CD7F32;">🥉 3</span>`;
-
-                        return `
-                            <tr>
-                                <td>${medalIcon}</td>
-                                <td style="font-weight: 700; color: #FFFFFF;">${user.username}</td>
-                                <td><span class="rank-badge-pill">${user.chess_elo !== undefined ? user.chess_elo : 0} Elo</span></td>
-                            </tr>
-                        `;
-                    }).join('');
+                    localStorage.setItem('cached_chess_leaderboard', JSON.stringify(data));
+                    renderChessLeaderboardTable(data, tbody);
                 } else {
-                    tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #94a3b8; padding: 2rem;">No chess records yet.</td></tr>`;
+                    throw new Error('No chess records');
                 }
             } catch (err) {
-                console.error("Chess leaderboard load error:", err);
-                tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #EF233C; padding: 2rem;">Error loading chess leaderboard.</td></tr>`;
+                console.warn("Chess leaderboard load error / offline:", err);
+                const cached = localStorage.getItem('cached_chess_leaderboard');
+                if (cached) {
+                    try {
+                        const data = JSON.parse(cached);
+                        renderChessLeaderboardTable(data, tbody);
+                        return;
+                    } catch (e) {}
+                }
+                tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #94a3b8; padding: 2rem;">Offline: No cached chess records.</td></tr>`;
             }
         }
 
@@ -1297,6 +1320,7 @@
                 console.warn("Offline mode active: Running on local cached profile.");
             }
         }
+
         async function loadAdminData() {
             const token = getToken();
             const res = await fetch('/api/admin/customers', { headers: { 'Authorization': `Bearer ${token}` } });
@@ -1415,6 +1439,18 @@
                     fileBlob: blob,
                     downloadedAt: new Date().toISOString()
                 });
+
+                let cached = localStorage.getItem('cached_customer_books');
+                if (cached) {
+                    try {
+                        let books = JSON.parse(cached);
+                        let b = books.find(x => x.id === bookId);
+                        if (b) {
+                            b.is_downloaded = true;
+                            localStorage.setItem('cached_customer_books', JSON.stringify(books));
+                        }
+                    } catch(e) {}
+                }
 
                 btn.innerText = '✅ Offline Ready';
                 btn.style.background = '#28a745';
