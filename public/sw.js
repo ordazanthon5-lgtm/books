@@ -1,6 +1,6 @@
 // public/sw.js
 
-const CACHE_NAME = '501books-static-v2';
+const CACHE_NAME = '501books-static-v3';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -53,16 +53,25 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
+  // Handle navigation requests (cold starts / page loads)
+  if (e.request.mode === 'navigate') {
+    e.respondWith(
+      fetch(e.request)
+        .catch(() => {
+          return caches.match('/') || caches.match('/index.html');
+        })
+    );
+    return;
+  }
+
+  // Standard cache-first strategy for static assets & scripts
   e.respondWith(
     caches.match(e.request).then((cachedResponse) => {
       if (cachedResponse) {
         return cachedResponse;
       }
       return fetch(e.request).catch(() => {
-        // Fallback to index.html for navigation requests if offline
-        if (e.request.mode === 'navigate') {
-          return caches.match('/');
-        }
+        // Fallback for sub-resources if needed
       });
     })
   );

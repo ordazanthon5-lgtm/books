@@ -1200,7 +1200,7 @@
             }
         }
 
-        async function renderApp() {
+async function renderApp() {
             const token = getToken();
             const loginView = document.getElementById('login-view');
             const dashboardContainer = document.getElementById('dashboard-container');
@@ -1223,6 +1223,10 @@
                 if (!res.ok) return logout();
 
                 const user = await res.json();
+                
+                // Cache user profile locally for offline cold-starts
+                localStorage.setItem('cached_user_profile', JSON.stringify(user));
+
                 loginView.classList.add('hidden');
                 dashboardContainer.classList.remove('hidden');
                 appHeader.classList.remove('hidden');
@@ -1251,13 +1255,29 @@
                     switchLibraryTab('active');
                 }
             } catch (err) {
-                console.error("Render app error:", err);
+                console.warn("Offline mode detected on startup. Loading dashboard from local cache.");
+                
+                // Try loading cached user profile if offline, with sensible defaults
+                let cachedUser = { username: "Reader", role: "customer", completed_count: 0, rank: 1 };
+                const savedProfile = localStorage.getItem('cached_user_profile');
+                if (savedProfile) {
+                    try { cachedUser = JSON.parse(savedProfile); } catch (e) {}
+                }
+
                 loginView.classList.add('hidden');
                 dashboardContainer.classList.remove('hidden');
                 appHeader.classList.remove('hidden');
+                
+                document.getElementById('nav-username').textContent = cachedUser.username || "Reader";
+                
+                const badgeTitle = getRankBadge(cachedUser.completed_count || 0);
+                const navBadgeContainer = document.getElementById('nav-badge-container');
+                navBadgeContainer.innerHTML = `<span class="nav-badge-pill">#${cachedUser.rank || 1} • ${badgeTitle}</span>`;
+
                 document.getElementById('customer-view').classList.remove('hidden');
                 document.getElementById('admin-view').classList.add('hidden');
                 document.getElementById('reader-view').classList.add('hidden');
+                fabGetBook.classList.remove('hidden');
                 switchLibraryTab('active');
             }
         }
