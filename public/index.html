@@ -622,7 +622,7 @@
         </a>
     </main>
 <script type="module">
-        import { openDB, saveBookOffline, getOfflineBook, isBookDownloaded, queueOfflineBookmark, getAndClearSyncQueue } from './db.js';
+        import { saveBookOffline, getOfflineBook, isBookDownloaded, queueOfflineBookmark, getAndClearSyncQueue } from './db.js';
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
@@ -1429,7 +1429,7 @@
             }, 7000);
         }
 
-        async function handleBookDownload(bookId, epubUrl, title) {
+        async function handleBookDownload(bookId, epubUrl, title, author, coverUrl) {
             const btn = document.getElementById(`download-btn-${bookId}`);
             if (!btn) return;
 
@@ -1444,8 +1444,10 @@
                 await saveBookOffline({
                     id: bookId,
                     title: title,
-                    fileBlob: blob,
-                    downloadedAt: new Date().toISOString()
+                    author: author,
+                    cover_url: coverUrl,
+                    url: epubUrl,
+                    fileBlob: blob
                 });
 
                 let cached = localStorage.getItem('cached_customer_books');
@@ -1500,35 +1502,24 @@
                 }
             }
 
-            // ROBUST OFFLINE INDEXEDDB FALLBACK: If localStorage is empty, map downloaded books from IndexedDB with full URL preservation so clicking continue reading works seamlessly offline!
+            // ROBUST OFFLINE CACHE FALLBACK: If localStorage is empty, map downloaded books from Cache API metadata
             if (!Array.isArray(loadedCustomerBooks) || loadedCustomerBooks.length === 0) {
                 try {
-                    const db = await openDB();
-                    const tx = db.transaction('downloaded_books', 'readonly');
-                    const store = tx.objectStore('downloaded_books');
-                    const getAllReq = store.getAll();
-                    
-                    await new Promise((resolve) => {
-                        getAllReq.onsuccess = () => {
-                            const savedBooks = getAllReq.result || [];
-                            if (savedBooks.length > 0) {
-                                loadedCustomerBooks = savedBooks.map(b => ({
-                                    id: b.id,
-                                    title: b.title || 'Downloaded Book',
-                                    author: b.author || 'Offline Reader',
-                                    is_completed: false,
-                                    reading_percentage: 0,
-                                    cover_url: b.cover_url || b.cover || '',
-                                    url: b.url || b.heyzine_url || ''
-                                }));
-                                localStorage.setItem('cached_customer_books', JSON.stringify(loadedCustomerBooks));
-                            }
-                            resolve();
-                        };
-                        getAllReq.onerror = () => resolve();
-                    });
-                } catch (dbErr) {
-                    console.warn('Could not read offline books from IndexedDB fallback:', dbErr);
+                    const metaList = JSON.parse(localStorage.getItem('my_offline_books_meta') || '[]');
+                    if (metaList.length > 0) {
+                        loadedCustomerBooks = metaList.map(b => ({
+                            id: b.id,
+                            title: b.title || 'Downloaded Book',
+                            author: b.author || 'Offline Reader',
+                            is_completed: false,
+                            reading_percentage: 0,
+                            cover_url: b.cover_url || '',
+                            url: b.url || ''
+                        }));
+                        localStorage.setItem('cached_customer_books', JSON.stringify(loadedCustomerBooks));
+                    }
+                } catch (cacheErr) {
+                    console.warn('Could not read offline books from metadata fallback:', cacheErr);
                 }
             }
 
@@ -1574,6 +1565,8 @@
                 if (isCompleted) percentage = 100;
 
                 const safeTitle = title.replace(/'/g, "\\'");
+                const safeAuthor = author.replace(/'/g, "\\'");
+                const safeCover = cover.replace(/'/g, "\\'");
 
                 return `
                     <div class="active-book-card-featured swipe-item-active" data-book-id="${bookId}">
@@ -1592,7 +1585,7 @@
                             
                             <div class="active-book-actions-row">
                                 <button class="btn-continue-reading" onclick="openBookById(${bookId})">${isCompleted ? 'Read Again →' : 'Continue Reading →'}</button>
-                                <button id="download-btn-${bookId}" class="btn-secondary-dark" style="margin-top: 0; padding: 0.75rem 0.9rem; font-size: 0.85rem; width: auto;" onclick="handleBookDownload(${bookId}, '${url}', '${safeTitle}')">⬇️ Download</button>
+                                <button id="download-btn-${bookId}" class="btn-secondary-dark" style="margin-top: 0; padding: 0.75rem 0.9rem; font-size: 0.85rem; width: auto;" onclick="handleBookDownload(${bookId}, '${url}', '${safeTitle}', '${safeAuthor}', '${safeCover}')">⬇️ Download</button>
                                 <div class="icon-action-buttons">
                                     <button class="icon-btn-circle" onclick="deleteBook(${bookId})" title="Delete Book">🗑️</button>
                                 </div>
@@ -1706,7 +1699,7 @@
                     bookSource = await offlineBook.fileBlob.arrayBuffer();
                 }
             } catch (err) {
-                console.warn('Failed reading from IndexedDB, falling back to URL source:', err);
+                console.warn('Failed reading from Cache API, falling back to URL source:', err);
             }
 
             currentBook = ePub(bookSource);
