@@ -1287,38 +1287,37 @@
                 switchLibraryTab('active');
             }
 
-            try {
-                const res = await fetch('/api/me', { headers: { 'Authorization': `Bearer ${token}` } });
-                
-                if (res.status === 401 || res.status === 403) {
-                    if (navigator.onLine) {
+            if (navigator.onLine) {
+                try {
+                    const res = await fetch('/api/me', { headers: { 'Authorization': `Bearer ${token}` } });
+                    
+                    if (res.status === 401 || res.status === 403) {
                         return logout();
                     }
-                    return;
-                }
 
-                if (res.ok) {
-                    const user = await res.json();
-                    localStorage.setItem('cached_user_profile', JSON.stringify(user));
+                    if (res.ok) {
+                        const user = await res.json();
+                        localStorage.setItem('cached_user_profile', JSON.stringify(user));
 
-                    document.getElementById('nav-username').textContent = user.username;
-                    currentUserElo = user.chess_elo !== undefined ? user.chess_elo : 0;
-                    if (eloDisp) eloDisp.textContent = `Your Elo: ${currentUserElo}`;
+                        document.getElementById('nav-username').textContent = user.username;
+                        currentUserElo = user.chess_elo !== undefined ? user.chess_elo : 0;
+                        if (eloDisp) eloDisp.textContent = `Your Elo: ${currentUserElo}`;
 
-                    if (user.role === 'admin') {
-                        navBadgeContainer.innerHTML = `<span class="nav-badge-pill" style="background: rgba(255,255,255,0.1); color: #FFFFFF; border-color: rgba(255,255,255,0.2);">🛡️ Admin</span>`;
-                        document.getElementById('admin-view').classList.remove('hidden');
-                        document.getElementById('customer-view').classList.add('hidden');
-                        document.getElementById('reader-view').classList.add('hidden');
-                        fabGetBook.classList.add('hidden');
-                        loadAdminData();
-                    } else {
-                        const freshBadgeTitle = getRankBadge(user.completed_count || 0);
-                        navBadgeContainer.innerHTML = `<span class="nav-badge-pill">#${user.rank || 1} • ${freshBadgeTitle}</span>`;
+                        if (user.role === 'admin') {
+                            navBadgeContainer.innerHTML = `<span class="nav-badge-pill" style="background: rgba(255,255,255,0.1); color: #FFFFFF; border-color: rgba(255,255,255,0.2);">🛡️ Admin</span>`;
+                            document.getElementById('admin-view').classList.remove('hidden');
+                            document.getElementById('customer-view').classList.add('hidden');
+                            document.getElementById('reader-view').classList.add('hidden');
+                            fabGetBook.classList.add('hidden');
+                            loadAdminData();
+                        } else {
+                            const freshBadgeTitle = getRankBadge(user.completed_count || 0);
+                            navBadgeContainer.innerHTML = `<span class="nav-badge-pill">#${user.rank || 1} • ${freshBadgeTitle}</span>`;
+                        }
                     }
+                } catch (err) {
+                    console.warn("Offline mode active: Running on local cached profile.");
                 }
-            } catch (err) {
-                console.warn("Offline mode active: Running on local cached profile.");
             }
         }
 
@@ -1477,17 +1476,19 @@
                 }
             }
 
-            try {
-                const res = await fetch('/api/customer/books', { headers: { 'Authorization': `Bearer ${getToken()}` } });
-                if (res.ok) {
-                    const books = await res.json();
-                    if (Array.isArray(books)) {
-                        loadedCustomerBooks = books;
-                        localStorage.setItem('cached_customer_books', JSON.stringify(loadedCustomerBooks));
+            if (navigator.onLine) {
+                try {
+                    const res = await fetch('/api/customer/books', { headers: { 'Authorization': `Bearer ${getToken()}` } });
+                    if (res.ok) {
+                        const books = await res.json();
+                        if (Array.isArray(books)) {
+                            loadedCustomerBooks = books;
+                            localStorage.setItem('cached_customer_books', JSON.stringify(loadedCustomerBooks));
+                        }
                     }
+                } catch (err) {
+                    console.warn('Network offline or sync failed, using cached library list.');
                 }
-            } catch (err) {
-                console.warn('Network offline, using cached library list.');
             }
 
             if (!Array.isArray(loadedCustomerBooks)) {
@@ -1519,7 +1520,6 @@
                 return;
             }
 
-            // OFFLINE-SAFE COVER FALLBACK: Added onerror to swap broken image URLs with a clean CSS fallback block if offline
             grid.innerHTML = filteredBooks.map(b => {
                 const title = b.title || 'Untitled Book';
                 const author = b.author || 'Unknown Author';
@@ -1578,7 +1578,10 @@
 
         async function openBookById(bookId) {
             const book = loadedCustomerBooks.find(b => b.id === bookId);
-            if (!book) return;
+            if (!book) {
+                alert("Book not found in local library cache.");
+                return;
+            }
 
             const title = book.title || 'Untitled Book';
             const author = book.author || 'Unknown Author';
@@ -1587,10 +1590,12 @@
 
             if (isCompleted) {
                 try {
-                    await fetch(`/api/customer/books/${bookId}/restart`, {
-                        method: 'POST',
-                        headers: { 'Authorization': `Bearer ${getToken()}` }
-                    });
+                    if (navigator.onLine) {
+                        await fetch(`/api/customer/books/${bookId}/restart`, {
+                            method: 'POST',
+                            headers: { 'Authorization': `Bearer ${getToken()}` }
+                        });
+                    }
                 } catch (err) {
                     console.warn('Network offline during restart. Opening locally.');
                 }
@@ -1607,10 +1612,12 @@
             if (!confirm('Are you sure you want to remove this book from your library?')) return;
 
             try {
-                await fetch(`/api/customer/books/${bookId}`, {
-                    method: 'DELETE',
-                    headers: { 'Authorization': `Bearer ${getToken()}` }
-                });
+                if (navigator.onLine) {
+                    await fetch(`/api/customer/books/${bookId}`, {
+                        method: 'DELETE',
+                        headers: { 'Authorization': `Bearer ${getToken()}` }
+                    });
+                }
             } catch (err) {
                 console.warn('Network offline while deleting book.');
             }
@@ -1750,15 +1757,17 @@
                         await queueOfflineBookmark(activeBookId, bookmarkPayload);
 
                         try {
-                            const res = await fetch(`/api/customer/books/${activeBookId}/bookmark`, {
-                                method: 'POST',
-                                headers: { 
-                                    'Content-Type': 'application/json', 
-                                    'Authorization': `Bearer ${getToken()}` 
-                                },
-                                body: JSON.stringify(bookmarkPayload)
-                            });
-                            if (!res.ok) throw new Error('Network error');
+                            if (navigator.onLine) {
+                                const res = await fetch(`/api/customer/books/${activeBookId}/bookmark`, {
+                                    method: 'POST',
+                                    headers: { 
+                                        'Content-Type': 'application/json', 
+                                        'Authorization': `Bearer ${getToken()}` 
+                                    },
+                                    body: JSON.stringify(bookmarkPayload)
+                                });
+                                if (!res.ok) throw new Error('Network error');
+                            }
                         } catch (err) {
                             console.warn('Offline detected. Progress successfully secured locally and queued for sync.');
                         }
