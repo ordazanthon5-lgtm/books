@@ -1468,7 +1468,7 @@
             if (cachedBooks) {
                 try {
                     const parsed = JSON.parse(cachedBooks);
-                    if (Array.isArray(parsed)) {
+                    if (Array.isArray(parsed) && parsed.length > 0) {
                         loadedCustomerBooks = parsed;
                     }
                 } catch (e) {
@@ -1488,6 +1488,38 @@
                     }
                 } catch (err) {
                     console.warn('Network offline or sync failed, using cached library list.');
+                }
+            }
+
+            // EMERGENCY OFFLINE INDEXEDDB FALLBACK: If localStorage is empty, build library list directly from saved files in IndexedDB!
+            if (!Array.isArray(loadedCustomerBooks) || loadedCustomerBooks.length === 0) {
+                try {
+                    const db = await openDB();
+                    const tx = db.transaction('downloaded_books', 'readonly');
+                    const store = tx.objectStore('downloaded_books');
+                    const getAllReq = store.getAll();
+                    
+                    await new Promise((resolve) => {
+                        getAllReq.onsuccess = () => {
+                            const savedBooks = getAllReq.result || [];
+                            if (savedBooks.length > 0) {
+                                loadedCustomerBooks = savedBooks.map(b => ({
+                                    id: b.id,
+                                    title: b.title || 'Downloaded Book',
+                                    author: b.author || 'Offline Reader',
+                                    is_completed: false,
+                                    reading_percentage: 0,
+                                    cover_url: '',
+                                    url: ''
+                                }));
+                                localStorage.setItem('cached_customer_books', JSON.stringify(loadedCustomerBooks));
+                            }
+                            resolve();
+                        };
+                        getAllReq.onerror = () => resolve();
+                    });
+                } catch (dbErr) {
+                    console.warn('Could not read offline books from IndexedDB fallback:', dbErr);
                 }
             }
 
@@ -1516,7 +1548,7 @@
             }
 
             if (!filteredBooks.length) {
-                grid.innerHTML = `<p style="color:#94a3b8; padding: 0.5rem 0;">No ${currentLibraryTab === 'active' ? 'active' : 'completed'} books in your library.</p>`;
+                grid.innerHTML = `<p style="color:#94a3b8; padding: 0.5rem 0;">No ${currentLibraryTab === 'active' ? 'active' : 'completed'} books in your library. (Offline mode: ensure books are downloaded first)</p>`;
                 return;
             }
 
@@ -1525,7 +1557,7 @@
                 const author = b.author || 'Unknown Author';
                 const bookId = b.id;
                 const isCompleted = b.is_completed === 1 || b.is_completed === true;
-                const cover = b.cover_url || b.cover || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=500&q=80';
+                const cover = b.cover_url || b.cover || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=500&q=85';
                 const url = b.heyzine_url || b.url || '';
 
                 let percentage = b.reading_percentage !== undefined && b.reading_percentage !== null ? b.reading_percentage : (isCompleted ? 100 : 0);
