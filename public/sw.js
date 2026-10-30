@@ -1,6 +1,6 @@
 // public/sw.js
 
-const CACHE_NAME = '501books-static-v6';
+const CACHE_NAME = '501books-static-v7';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -12,15 +12,20 @@ const ASSETS_TO_CACHE = [
   'https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css'
 ];
 
-// Install Event: Cache app shell and scripts
+// Install Event: Cache app shell and scripts safely using cache.put() for opaque CDN responses
 self.addEventListener('install', (e) => {
   e.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return Promise.all(
-        ASSETS_TO_CACHE.map((url) => {
-          return cache.add(new Request(url, { mode: 'no-cors' })).catch((err) => {
+    caches.open(CACHE_NAME).then(async (cache) => {
+      await Promise.all(
+        ASSETS_TO_CACHE.map(async (url) => {
+          try {
+            const response = await fetch(new Request(url, { mode: 'no-cors' }));
+            if (response) {
+              await cache.put(url, response);
+            }
+          } catch (err) {
             console.warn('Failed to cache asset during install:', url, err);
-          });
+          }
         })
       );
     })
