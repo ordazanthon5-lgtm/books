@@ -1444,10 +1444,12 @@
                 if (cached) {
                     try {
                         let books = JSON.parse(cached);
-                        let b = books.find(x => x.id === bookId);
-                        if (b) {
-                            b.is_downloaded = true;
-                            localStorage.setItem('cached_customer_books', JSON.stringify(books));
+                        if (Array.isArray(books)) {
+                            let b = books.find(x => x.id === bookId);
+                            if (b) {
+                                b.is_downloaded = true;
+                                localStorage.setItem('cached_customer_books', JSON.stringify(books));
+                            }
                         }
                     } catch(e) {}
                 }
@@ -1463,22 +1465,36 @@
         }
 
         async function loadCustomerBooks() {
+            // 1. INSTANT LOCAL CACHE LOAD
+            const cachedBooks = localStorage.getItem('cached_customer_books');
+            if (cachedBooks) {
+                try {
+                    const parsed = JSON.parse(cachedBooks);
+                    if (Array.isArray(parsed)) {
+                        loadedCustomerBooks = parsed;
+                    }
+                } catch (e) {
+                    loadedCustomerBooks = [];
+                }
+            }
+
+            // 2. BACKGROUND NETWORK FETCH
             try {
                 const res = await fetch('/api/customer/books', { headers: { 'Authorization': `Bearer ${getToken()}` } });
-                const books = await res.json();
-                loadedCustomerBooks = books || [];
-                // Save locally to localStorage for offline access
-                localStorage.setItem('cached_customer_books', JSON.stringify(loadedCustomerBooks));
-            } catch (err) {
-                console.warn('Network offline, loading library list from local cache.');
-                const cachedBooks = localStorage.getItem('cached_customer_books');
-                if (cachedBooks) {
-                    try {
-                        loadedCustomerBooks = JSON.parse(cachedBooks);
-                    } catch (e) {
-                        loadedCustomerBooks = [];
+                if (res.ok) {
+                    const books = await res.json();
+                    if (Array.isArray(books)) {
+                        loadedCustomerBooks = books;
+                        localStorage.setItem('cached_customer_books', JSON.stringify(loadedCustomerBooks));
                     }
                 }
+            } catch (err) {
+                console.warn('Network offline, using cached library list.');
+            }
+
+            // SAFETY GUARD: Ensure loadedCustomerBooks is always a valid array to prevent .filter crashes
+            if (!Array.isArray(loadedCustomerBooks)) {
+                loadedCustomerBooks = [];
             }
 
             const grid = document.getElementById('customer-books-grid');
@@ -1545,15 +1561,17 @@
             }).join('');
 
             filteredBooks.forEach(async (b) => {
-                const downloaded = await isBookDownloaded(b.id);
-                if (downloaded) {
-                    const btn = document.getElementById(`download-btn-${b.id}`);
-                    if (btn) {
-                        btn.innerText = '✅ Offline Ready';
-                        btn.style.background = '#28a745';
-                        btn.disabled = true;
+                try {
+                    const downloaded = await isBookDownloaded(b.id);
+                    if (downloaded) {
+                        const btn = document.getElementById(`download-btn-${b.id}`);
+                        if (btn) {
+                            btn.innerText = '✅ Offline Ready';
+                            btn.style.background = '#28a745';
+                            btn.disabled = true;
+                        }
                     }
-                }
+                } catch (e) {}
             });
         }
 
