@@ -1,6 +1,6 @@
 // public/sw.js
 
-const CACHE_NAME = '501books-static-v5';
+const CACHE_NAME = '501books-static-v6';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',

@@ -126,7 +126,7 @@
         .tab-btn:hover { background: #1E293B; color: #FFFFFF; }
         .tab-btn.active { background: #EF233C; color: #FFFFFF; border-color: #EF233C; box-shadow: 0 6px 18px rgba(239, 35, 60, 0.4); }
 
-        /* HORIZONTAL SWIPEABLE CAROUSEL FOR LIBRARY BOOKS */
+        /* HORIZONTAL SWIPEABLE CAROUSEL FOR LIBRARY BOOKS (FIXED SIZING & MIN-WIDTH SO CARDS NEVER COLLAPSE TO 0px) */
         .horizontal-swipe-container { 
             display: flex; 
             gap: 1.25rem; 
@@ -136,6 +136,8 @@
             -webkit-overflow-scrolling: touch; 
             scrollbar-width: thin; 
             scrollbar-color: #EF233C transparent; 
+            width: 100%;
+            box-sizing: border-box;
         }
         .horizontal-swipe-container::-webkit-scrollbar { height: 6px; }
         .horizontal-swipe-container::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); border-radius: 10px; }
@@ -157,7 +159,11 @@
             transition: opacity 0.5s ease;
         }
 
-        .swipe-item-active { flex: 0 0 100%; scroll-snap-align: start; }
+        .swipe-item-active { 
+            flex: 0 0 100%; 
+            min-width: 100%; 
+            scroll-snap-align: start; 
+        }
 
         .user-list { display: flex; flex-direction: column; gap: 0.5rem; }
         .user-item { display: flex; justify-content: space-between; align-items: center; background: #0A0F1D; padding: 0.75rem 1rem; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.08); }
@@ -165,14 +171,14 @@
         .btn-delete { background: #0F172A; color: #EF233C; border: 1px solid #EF233C; padding: 0.4rem 0.8rem; border-radius: 8px; cursor: pointer; font-size: 0.85rem; font-weight: 600; }
         .btn-delete:hover { background: #EF233C; color: #FFFFFF; }
         
-        /* FEATURED BOOK CARD */
-        .active-book-card-featured { background: #0A0F1D; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 18px; padding: 1.25rem; display: flex; gap: 1.25rem; align-items: center; position: relative; box-shadow: inset 0 2px 6px rgba(0,0,0,0.5); }
+        /* FEATURED BOOK CARD (FIXED SIZING & WIDTHS) */
+        .active-book-card-featured { background: #0A0F1D; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 18px; padding: 1.25rem; display: flex; gap: 1.25rem; align-items: center; position: relative; box-shadow: inset 0 2px 6px rgba(0,0,0,0.5); width: 100%; box-sizing: border-box; }
         .active-book-cover-wrap { position: relative; width: 130px; height: 180px; flex-shrink: 0; border-radius: 12px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.1); background: #0F172A; }
         .active-book-cover { width: 100%; height: 100%; object-fit: cover; }
         .active-book-ribbon { position: absolute; top: 0; right: 12px; background: #EF233C; width: 22px; height: 28px; display: flex; align-items: center; justify-content: center; clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 75%, 0 100%); }
         
-        .active-book-details { flex: 1; display: flex; flex-direction: column; justify-content: center; }
-        .active-book-title { font-size: 1.4rem; font-weight: 800; color: #FFFFFF; letter-spacing: -0.5px; margin-bottom: 0.2rem; text-transform: uppercase; }
+        .active-book-details { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
+        .active-book-title { font-size: 1.4rem; font-weight: 800; color: #FFFFFF; letter-spacing: -0.5px; margin-bottom: 0.2rem; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .active-book-author { font-size: 0.85rem; color: #94a3b8; margin-bottom: 1rem; font-weight: 500; }
         
         .active-book-stats-row { display: flex; gap: 0.75rem; margin-bottom: 1rem; flex-wrap: wrap; }
@@ -259,7 +265,7 @@
 </head>
 <body>
 
-    <header id="app-header" class="hidden">
+ <header id="app-header" class="hidden">
         <a href="#" class="logo-container">
             <div class="logo-icon-box">🦜</div>
             <div class="logo-text-group">
@@ -318,6 +324,7 @@
                 </form>
             </div>
         </div>
+
         <!-- SIGN UP POPUP MODAL -->
         <div id="signup-modal" class="modal-overlay hidden">
             <div class="modal-card">
@@ -365,6 +372,7 @@
                 <button id="req-modal-btn" class="btn-success-green" onclick="submitBookRequest()">Add To Library</button>
             </div>
         </div>
+
         <!-- DASHBOARDS -->
         <div id="dashboard-container" class="dashboard-main hidden">
             <!-- ADMIN VIEW -->
@@ -456,6 +464,7 @@
                     </div>
                     <div id="customer-books-grid" class="horizontal-swipe-container"></div>
                 </div>
+
                 <!-- LEADERBOARD SECTION (SIDE-BY-SIDE WITH SCROLLABLE BOXES WHEN > 10 PLAYERS) -->
                 <div id="leaderboard-section" class="library-seamless-card hidden">
                     <h2 style="margin-bottom: 0.4rem;">Community Leaderboards & Badges</h2>
@@ -612,7 +621,7 @@
             Ask For Help
         </a>
     </main>
- <script type="module">
+<script type="module">
         import { openDB, saveBookOffline, getOfflineBook, isBookDownloaded, queueOfflineBookmark, getAndClearSyncQueue } from './db.js';
 
         if ('serviceWorker' in navigator) {
@@ -1491,7 +1500,7 @@
                 }
             }
 
-            // EMERGENCY OFFLINE INDEXEDDB FALLBACK: If localStorage is empty, build library list directly from saved files in IndexedDB!
+            // ROBUST OFFLINE INDEXEDDB FALLBACK: If localStorage is empty, map downloaded books from IndexedDB with full URL preservation so clicking continue reading works seamlessly offline!
             if (!Array.isArray(loadedCustomerBooks) || loadedCustomerBooks.length === 0) {
                 try {
                     const db = await openDB();
@@ -1509,8 +1518,8 @@
                                     author: b.author || 'Offline Reader',
                                     is_completed: false,
                                     reading_percentage: 0,
-                                    cover_url: '',
-                                    url: ''
+                                    cover_url: b.cover_url || b.cover || '',
+                                    url: b.url || b.heyzine_url || ''
                                 }));
                                 localStorage.setItem('cached_customer_books', JSON.stringify(loadedCustomerBooks));
                             }
@@ -1548,7 +1557,7 @@
             }
 
             if (!filteredBooks.length) {
-                grid.innerHTML = `<p style="color:#94a3b8; padding: 0.5rem 0;">No ${currentLibraryTab === 'active' ? 'active' : 'completed'} books in your library. (Offline mode: ensure books are downloaded first)</p>`;
+                grid.innerHTML = `<p style="color:#94a3b8; padding: 0.5rem 0;">No ${currentLibraryTab === 'active' ? 'active' : 'completed'} books in your library.</p>`;
                 return;
             }
 
@@ -1567,7 +1576,7 @@
                 const safeTitle = title.replace(/'/g, "\\'");
 
                 return `
-                    <div class="active-book-card-featured swipe-item-active" data-book-id="${bookId}" style="display: flex !important; visibility: visible !important; opacity: 1 !important;">
+                    <div class="active-book-card-featured swipe-item-active" data-book-id="${bookId}">
                         <div class="active-book-cover-wrap">
                             <img src="${cover}" alt="${title}" class="active-book-cover" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'120\' height=\'160\'><rect width=\'100%\' height=\'100%\' fill=\'%231e293b\'/><text x=\'50%\' y=\'50%\' dominant-baseline=\'middle\' text-anchor=\'middle\' fill=\'%2394a3b8\' font-size=\'14\'>501Books</text></svg>';">
                             <div class="active-book-ribbon">${isCompleted ? '✅' : '📖'}</div>
