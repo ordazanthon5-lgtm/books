@@ -612,7 +612,7 @@
             Ask For Help
         </a>
     </main>
-<script type="module">
+ <script type="module">
         import { openDB, saveBookOffline, getOfflineBook, isBookDownloaded, queueOfflineBookmark, getAndClearSyncQueue } from './db.js';
 
         if ('serviceWorker' in navigator) {
@@ -1323,107 +1323,86 @@
         }
 
         async function loadAdminData() {
-            try {
-                const token = getToken();
-                const res = await fetch('/api/admin/customers', { headers: { 'Authorization': `Bearer ${token}` } });
-                if (!res.ok) return;
-                const customers = await res.json();
+            const token = getToken();
+            const res = await fetch('/api/admin/customers', { headers: { 'Authorization': `Bearer ${token}` } });
+            const customers = await res.json();
 
-                const listEl = document.getElementById('customer-accounts-list');
-                const assignSelectEl = document.getElementById('assign-user-select');
-                const changePassSelectEl = document.getElementById('change-pass-user-select');
+            const listEl = document.getElementById('customer-accounts-list');
+            const assignSelectEl = document.getElementById('assign-user-select');
+            const changePassSelectEl = document.getElementById('change-pass-user-select');
 
-                listEl.innerHTML = customers.length ? customers.map(c => `
-                    <div class="user-item">
-                        <span>${c.username}</span>
-                        <button class="btn-delete" onclick="deleteUser(${c.id})">Delete</button>
-                    </div>
-                `).join('') : '<p style="color:#94a3b8;">No customers yet.</p>';
+            listEl.innerHTML = customers.length ? customers.map(c => `
+                <div class="user-item">
+                    <span>${c.username}</span>
+                    <button class="btn-delete" onclick="deleteUser(${c.id})">Delete</button>
+                </div>
+            `).join('') : '<p style="color:#94a3b8;">No customers yet.</p>';
 
-                const optionsHTML = customers.map(c => `<option value="${c.id}">${c.username}</option>`).join('');
-                assignSelectEl.innerHTML = optionsHTML;
-                changePassSelectEl.innerHTML = optionsHTML;
-            } catch (e) {
-                console.warn("Admin load offline fallback.");
-            }
+            const optionsHTML = customers.map(c => `<option value="${c.id}">${c.username}</option>`).join('');
+            assignSelectEl.innerHTML = optionsHTML;
+            changePassSelectEl.innerHTML = optionsHTML;
         }
 
         document.getElementById('create-user-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            try {
-                const res = await fetch('/api/admin/users', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
-                    body: JSON.stringify({
-                        username: document.getElementById('new-username').value,
-                        password: document.getElementById('new-password').value
-                    })
-                });
-                const data = await res.json();
-                if (res.ok) {
-                    showAlert('admin-user-alert', data.message, 'success');
-                    document.getElementById('create-user-form').reset();
-                    loadAdminData();
-                } else showAlert('admin-user-alert', data.error);
-            } catch (e) {
-                showAlert('admin-user-alert', 'Network error. Cannot create user offline.');
-            }
+            const res = await fetch('/api/admin/users', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
+                body: JSON.stringify({
+                    username: document.getElementById('new-username').value,
+                    password: document.getElementById('new-password').value
+                })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                showAlert('admin-user-alert', data.message, 'success');
+                document.getElementById('create-user-form').reset();
+                loadAdminData();
+            } else showAlert('admin-user-alert', data.error);
         });
 
         document.getElementById('change-customer-pass-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            try {
-                const res = await fetch('/api/admin/change-customer-password', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
-                    body: JSON.stringify({
-                        userId: document.getElementById('change-pass-user-select').value,
-                        newPassword: document.getElementById('customer-new-pass').value
-                    })
-                });
-                const data = await res.json();
-                if (res.ok) {
-                    showAlert('admin-customer-pass-alert', data.message, 'success');
-                    document.getElementById('change-customer-pass-form').reset();
-                } else showAlert('admin-customer-pass-alert', data.error);
-            } catch (e) {
-                showAlert('admin-customer-pass-alert', 'Network error. Cannot change password offline.');
-            }
+            const res = await fetch('/api/admin/change-customer-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
+                body: JSON.stringify({
+                    userId: document.getElementById('change-pass-user-select').value,
+                    newPassword: document.getElementById('customer-new-pass').value
+                })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                showAlert('admin-customer-pass-alert', data.message, 'success');
+                document.getElementById('change-customer-pass-form').reset();
+            } else showAlert('admin-customer-pass-alert', data.error);
         });
 
         async function deleteUser(id) {
             if (!confirm('Delete customer account and their assigned books?')) return;
-            try {
-                await fetch(`/api/admin/users/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${getToken()}` } });
-                loadAdminData();
-            } catch (e) {
-                alert('Network error deleting user offline.');
-            }
+            await fetch(`/api/admin/users/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${getToken()}` } });
+            loadAdminData();
         }
 
         document.getElementById('add-book-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            try {
-                const res = await fetch('/api/admin/books', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
-                    body: JSON.stringify({
-                        userId: document.getElementById('assign-user-select').value,
-                        title: document.getElementById('book-title').value,
-                        author: document.getElementById('book-author').value,
-                        url: document.getElementById('book-url').value,
-                        coverUrl: document.getElementById('book-cover').value
-                    })
-                });
-                const data = await res.json();
-                if (res.ok) {
-                    showAlert('admin-book-alert', data.message, 'success');
-                    document.getElementById('add-book-form').reset();
-                    loadAdminData();
-                } else showAlert('admin-book-alert', data.error);
-            } catch (e) {
-                showAlert('admin-book-alert', 'Network error adding book offline.');
-            }
+            const res = await fetch('/api/admin/books', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
+                body: JSON.stringify({
+                    userId: document.getElementById('assign-user-select').value,
+                    title: document.getElementById('book-title').value,
+                    author: document.getElementById('book-author').value,
+                    url: document.getElementById('book-url').value,
+                    coverUrl: document.getElementById('book-cover').value
+                })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                showAlert('admin-book-alert', data.message, 'success');
+                document.getElementById('add-book-form').reset();
+                loadAdminData();
+            } else showAlert('admin-book-alert', data.error);
         });
 
         let loadedCustomerBooks = [];
@@ -1540,6 +1519,7 @@
                 return;
             }
 
+            // OFFLINE-SAFE COVER FALLBACK: Added onerror to swap broken image URLs with a clean CSS fallback block if offline
             grid.innerHTML = filteredBooks.map(b => {
                 const title = b.title || 'Untitled Book';
                 const author = b.author || 'Unknown Author';
@@ -1633,9 +1613,6 @@
                 });
             } catch (err) {
                 console.warn('Network offline while deleting book.');
-                // Local fallback removal so UI updates immediately offline
-                loadedCustomerBooks = loadedCustomerBooks.filter(b => b.id !== bookId);
-                localStorage.setItem('cached_customer_books', JSON.stringify(loadedCustomerBooks));
             }
 
             loadCustomerBooks();
