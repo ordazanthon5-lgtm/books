@@ -1,9 +1,7 @@
 // public/sw.js
-
-const CACHE_NAME = '501books-static-v7';
-const ASSETS_TO_CACHE = [
-  '/',
-  '/index.html',
+const CACHE_NAME = '501books-static-v8';   // bump so the fix rolls out
+const APP_SHELL = ['/', '/index.html', '/db.js'];
+const CDN_ASSETS = [
   'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',
   'https://cdn.jsdelivr.net/npm/epubjs/dist/epub.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js',
@@ -12,72 +10,71 @@ const ASSETS_TO_CACHE = [
   'https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css'
 ];
 
-// Install Event: Cache app shell and scripts safely using cache.put() for opaque CDN responses
 self.addEventListener('install', (e) => {
-  e.waitUntil(
-    caches.open(CACHE_NAME).then(async (cache) => {
-      await Promise.all(
-        ASSETS_TO_CACHE.map(async (url) => {
-          try {
-            const response = await fetch(new Request(url, { mode: 'no-cors' }));
-            if (response) {
-              await cache.put(url, response);
-            }
-          } catch (err) {
-            console.warn('Failed to cache asset during install:', url, err);
-          }
-        })
-      );
-    })
-  );
+  e.waitUntil((async () => {
+    const cache = await caches.open(CACHE_NAME);
+    // Same-origin files MUST cache, otherwise the install fails and retries
+    await cache.addAll(APP_SHELL);
+    // CDN files are best-effort (opaque responses)
+    await Promise.all(CDN_ASSETS.map(async (url) => {
+      try {
+        const res = await fetch(url, { mode: 'no-cors' });
+        await cache.put(url, res);
+      } catch (err) {
+        console.warn('CDN cache failed:', url, err);
+      }
+    }));
+  })());
   self.skipWaiting();
 });
 
-// Activate Event: Clean up old caches
 self.addEventListener('activate', (e) => {
-  e.waitUntil(
-    caches.keys().then((keys) => {
-      return Promise.all(
-        keys.map((key) => {
-          if (key !== CACHE_NAME) {
-            return caches.delete(key);
-          }
-        })
-      );
-    })
-  );
-  self.clients.claim();
+  e.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(
+      keys
+        // ONLY touch old static caches, never the epub cache
+        .filter((k) => k.startsWith('501books-static-') && k !== CACHE_NAME)
+        .map((k) => caches.delete(k))
+    );
+    await self.clients.claim();
+  })());
 });
 
-// Fetch Event: Serve cached assets offline, let API calls pass through
 self.addEventListener('fetch', (e) => {
-  const url = new URL(e.request.url);
+  const req = e.request;
+  if (req.method !== 'GET') return;
 
-  // Bypass service worker for backend API endpoints
-  if (url.pathname.startsWith('/api/')) {
-    return;
-  }
+  const url = new URL(req.url);
+  if (url.pathname.startsWith('/api/')) return;
 
-  // Handle navigation requests (cold starts / page loads)
-  if (e.request.mode === 'navigate') {
-    e.respondWith(
-      fetch(e.request)
-        .catch(() => {
-          return caches.match('/') || caches.match('/index.html');
-        })
-    );
-    return;
-  }
-
-  // Standard cache-first strategy for static assets & scripts
-  e.respondWith(
-    caches.match(e.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        return cachedResponse;
+  // Page loads: network first, cached shell when offline
+  if (req.mode === 'navigate') {
+    e.respondWith((async () => {
+      try {
+        return await fetch(req);
+      } catch (err) {
+        return (await caches.match('/index.html')) ||
+               (await caches.match('/')) ||
+               new Response('Offline', { status: 503 });
       }
-      return fetch(e.request).catch(() => {
-        // Fallback for sub-resources if needed
-      });
-    })
-  );
+    })());
+    return;
+  }
+
+  // Everything else: cache first, then network (and remember same-origin files)
+  e.respondWith((async () => {
+    const cached = await caches.match(req);
+    if (cached) return cached;
+    try {
+      const res = await fetch(req);
+      if (res.ok && url.origin === self.location.origin) {
+        const cache = await caches.open(CACHE_NAME);
+        cache.put(req, res.clone());
+      }
+      return res;
+    } catch (err) {
+      return new Response('', { status: 503 });
+    }
+  })());
 });
