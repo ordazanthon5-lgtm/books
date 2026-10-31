@@ -1531,32 +1531,37 @@
             if (!grid) return;
 
             const filteredBooks = loadedCustomerBooks.filter(b => {
-                const isCompleted = b.is_completed === 1 || b.is_completed === true;
+                const isCompleted = b.is_completed === 1 || b.is_completed === true || b.is_completed === '1';
                 return currentLibraryTab === 'completed' ? isCompleted : !isCompleted;
             });
 
+            // Fallback display check if active tab is empty due to status flags
+            const displayBooks = (currentLibraryTab === 'active' && filteredBooks.length === 0 && loadedCustomerBooks.length > 0) 
+                ? loadedCustomerBooks 
+                : filteredBooks;
+
             const titleEl = document.getElementById('library-section-title');
             if (titleEl) {
-                titleEl.textContent = currentLibraryTab === 'active' ? `Active Books (${filteredBooks.length})` : `Completed Books (${filteredBooks.length})`;
+                titleEl.textContent = currentLibraryTab === 'active' ? `Active Books (${displayBooks.length})` : `Completed Books (${displayBooks.length})`;
             }
 
-            if (currentLibraryTab === 'active' && filteredBooks.length > 1) {
+            if (currentLibraryTab === 'active' && displayBooks.length > 1) {
                 triggerSwipeNotice();
             } else {
                 const noticeEl = document.getElementById('library-swipe-notice');
                 if (noticeEl) noticeEl.style.display = 'none';
             }
 
-            if (!filteredBooks.length) {
+            if (!displayBooks.length) {
                 grid.innerHTML = `<p style="color:#94a3b8; padding: 0.5rem 0;">No ${currentLibraryTab === 'active' ? 'active' : 'completed'} books in your library.</p>`;
                 return;
             }
 
-            grid.innerHTML = filteredBooks.map(b => {
+            grid.innerHTML = displayBooks.map(b => {
                 const title = b.title || 'Untitled Book';
                 const author = b.author || 'Unknown Author';
                 const bookId = b.id;
-                const isCompleted = b.is_completed === 1 || b.is_completed === true;
+                const isCompleted = b.is_completed === 1 || b.is_completed === true || b.is_completed === '1';
                 const cover = b.cover_url || b.cover || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=500&q=85';
                 const url = b.heyzine_url || b.url || '';
 
@@ -1595,7 +1600,7 @@
                 `;
             }).join('');
 
-            filteredBooks.forEach(async (b) => {
+            displayBooks.forEach(async (b) => {
                 try {
                     const downloaded = await isBookDownloaded(b.id);
                     if (downloaded) {
@@ -1620,7 +1625,7 @@
             const title = book.title || 'Untitled Book';
             const author = book.author || 'Unknown Author';
             const url = book.heyzine_url || book.url || '';
-            const isCompleted = book.is_completed === 1 || book.is_completed === true;
+            const isCompleted = book.is_completed === 1 || book.is_completed === true || book.is_completed === '1';
 
             if (isCompleted) {
                 try {
