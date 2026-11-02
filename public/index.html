@@ -1500,6 +1500,7 @@
         }
 
         async function loadCustomerBooks() {
+            // 1. Read the locally cached library list first (works offline)
             const cachedBooks = localStorage.getItem('cached_customer_books');
             if (cachedBooks) {
                 try {
@@ -1512,22 +1513,7 @@
                 }
             }
 
-            if (navigator.onLine) {
-                try {
-                    const res = await fetch('/api/customer/books', { headers: { 'Authorization': `Bearer ${getToken()}` } });
-                    if (res.ok) {
-                        const books = await res.json();
-                        if (Array.isArray(books)) {
-                            loadedCustomerBooks = books;
-                            localStorage.setItem('cached_customer_books', JSON.stringify(loadedCustomerBooks));
-                        }
-                    }
-                } catch (err) {
-                    console.warn('Network offline or sync failed, using cached library list.');
-                }
-            }
-
-            // ROBUST OFFLINE CACHE FALLBACK: If localStorage is empty, map downloaded books from Cache API metadata
+            // 2. ROBUST OFFLINE CACHE FALLBACK: If localStorage is empty, map downloaded books from Cache API metadata
             if (!Array.isArray(loadedCustomerBooks) || loadedCustomerBooks.length === 0) {
                 try {
                     const metaList = JSON.parse(localStorage.getItem('my_offline_books_meta') || '[]');
@@ -1552,6 +1538,34 @@
                 loadedCustomerBooks = [];
             }
 
+            // 3. Draw the library IMMEDIATELY, without waiting on the network
+            await renderCustomerBooks();
+
+            // 4. Refresh from the server in the background (6-second limit), then redraw
+            if (navigator.onLine) {
+                try {
+                    const ctrl = new AbortController();
+                    const timer = setTimeout(() => ctrl.abort(), 6000);
+                    const res = await fetch('/api/customer/books', {
+                        headers: { 'Authorization': `Bearer ${getToken()}` },
+                        signal: ctrl.signal
+                    });
+                    clearTimeout(timer);
+                    if (res.ok) {
+                        const books = await res.json();
+                        if (Array.isArray(books)) {
+                            loadedCustomerBooks = books;
+                            localStorage.setItem('cached_customer_books', JSON.stringify(loadedCustomerBooks));
+                            await renderCustomerBooks();
+                        }
+                    }
+                } catch (err) {
+                    console.warn('Network offline or sync failed, keeping cached library list.');
+                }
+            }
+        }
+
+        async function renderCustomerBooks() {
             const grid = document.getElementById('customer-books-grid');
             if (!grid) return;
 
