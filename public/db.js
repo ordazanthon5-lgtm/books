@@ -1,9 +1,15 @@
 // public/db.js
+// Offline storage for 501Books.
+// - Book files  -> IndexedDB (more reliable than the Cache API inside app wrappers)
+// - Progress queue + small metadata -> localStorage (synchronous, survives the app being killed)
 
-const CACHE_NAME = '501books-offline-epub-v1';
+const DB_NAME = '501books-offline';
+const STORE = 'books';
+const LEGACY_CACHE = '501books-offline-epub-v1'; // books saved by the old Download button
+const META_KEY = 'my_offline_books_meta';
 const SYNC_QUEUE_KEY = '501books_offline_sync_queue';
 
-// Request OS persistence so mobile devices never auto-delete downloaded books
+// Ask the OS not to auto-delete downloaded books
 async function ensurePersistentStorage() {
   try {
     if (navigator.storage && navigator.storage.persist) {
@@ -16,82 +22,127 @@ async function ensurePersistentStorage() {
 }
 ensurePersistentStorage();
 
-// Save downloaded book blob to Cache API
-export async function saveBookOffline(bookData) {
-  // bookData expects: { id, title, author, cover_url, url, fileBlob }
-  try {
-    const cache = await caches.open(CACHE_NAME);
-    const response = new Response(bookData.fileBlob);
-    await cache.put(`/book-file-${bookData.id}`, response);
-
-    // Save metadata list locally in localStorage for fast querying
-    let savedList = JSON.parse(localStorage.getItem('my_offline_books_meta') || '[]');
-    if (!savedList.some(b => b.id === bookData.id)) {
-      savedList.push({
-        id: bookData.id,
-        title: bookData.title || 'Downloaded Book',
-        author: bookData.author || 'Offline Reader',
-        cover_url: bookData.cover_url || '',
-        url: bookData.url || ''
-      });
-      localStorage.setItem('my_offline_books_meta', JSON.stringify(savedList));
-    }
-    return true;
-  } catch (err) {
-    console.error('Failed to save book offline via Cache API:', err);
-    throw err;
+let dbPromise = null;
+function openDB() {
+  if (!dbPromise) {
+    dbPromise = new Promise((resolve, reject) => {
+      const req = indexedDB.open(DB_NAME, 1);
+      req.onupgradeneeded = () => {
+        if (!req.result.objectStoreNames.contains(STORE)) {
+          req.result.createObjectStore(STORE, { keyPath: 'id' });
+        }
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => { dbPromise = null; reject(req.error); };
+    });
   }
+  return dbPromise;
 }
 
-// Retrieve saved book ArrayBuffer from Cache API
+function tx(mode, fn) {
+  return openDB().then(db => new Promise((resolve, reject) => {
+    const t = db.transaction(STORE, mode);
+    const result = fn(t.objectStore(STORE));
+    t.oncomplete = () => resolve(result && 'result' in result ? result.result : undefined);
+    t.onerror = () => reject(t.error);
+    t.onabort = () => reject(t.error || new Error('Transaction aborted'));
+  }));
+}
+
+function readMeta() {
+  try { return JSON.parse(localStorage.getItem(META_KEY) || '[]'); } catch (e) { return []; }
+}
+
+// ---------- Book files ----------
+
+// bookData: { id, title, author, cover_url, url, fileBlob }
+export async function saveBookOffline(bookData) {
+  const id = Number(bookData.id);
+  const data = await bookData.fileBlob.arrayBuffer();
+  await tx('readwrite', store => { store.put({ id, data, savedAt: Date.now() }); });
+
+  const list = readMeta().filter(b => Number(b.id) !== id);
+  list.push({
+    id,
+    title: bookData.title || 'Downloaded Book',
+    author: bookData.author || 'Offline Reader',
+    cover_url: bookData.cover_url || '',
+    url: bookData.url || ''
+  });
+  localStorage.setItem(META_KEY, JSON.stringify(list));
+  return true;
+}
+
 export async function getOfflineBook(bookId) {
+  const id = Number(bookId);
   try {
-    const cache = await caches.open(CACHE_NAME);
-    const response = await cache.match(`/book-file-${bookId}`);
-    if (response) {
-      const blob = await response.blob();
-      return { fileBlob: blob };
+    const row = await tx('readonly', store => store.get(id));
+    if (row && row.data) {
+      return { fileBlob: new Blob([row.data], { type: 'application/epub+zip' }) };
     }
   } catch (err) {
-    console.error('Failed to retrieve offline book:', err);
+    console.error('IndexedDB read failed:', err);
   }
+  // Books saved by the old version of the app
+  try {
+    const cache = await caches.open(LEGACY_CACHE);
+    const response = await cache.match(`/book-file-${id}`);
+    if (response) return { fileBlob: await response.blob() };
+  } catch (e) {}
   return null;
 }
 
-// Check if a book exists in local offline storage
 export async function isBookDownloaded(bookId) {
+  const id = Number(bookId);
   try {
-    const cache = await caches.open(CACHE_NAME);
-    const match = await cache.match(`/book-file-${bookId}`);
-    return !!match;
+    const n = await tx('readonly', store => store.count(IDBKeyRange.only(id)));
+    if (n > 0) return true;
+  } catch (e) {}
+  try {
+    const cache = await caches.open(LEGACY_CACHE);
+    return !!(await cache.match(`/book-file-${id}`));
   } catch (e) {
     return false;
   }
 }
 
-// Save bookmark progress to queue when offline
-export async function queueOfflineBookmark(bookId, bookmarkData) {
+export async function listDownloadedIds() {
   try {
-    let queue = JSON.parse(localStorage.getItem(SYNC_QUEUE_KEY) || '[]');
-    // Remove duplicate entry for the same book if exists, then push latest
-    queue = queue.filter(item => item.bookId !== bookId);
-    queue.push({ bookId, ...bookmarkData, timestamp: Date.now() });
-    localStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(queue));
-    return true;
-  } catch (err) {
-    console.error('Failed to queue offline bookmark:', err);
-    throw err;
+    return (await tx('readonly', store => store.getAllKeys())).map(Number);
+  } catch (e) {
+    return [];
   }
 }
 
-// Get and clear pending offline bookmark syncs when back online
-export async function getAndClearSyncQueue() {
-  try {
-    const queue = JSON.parse(localStorage.getItem(SYNC_QUEUE_KEY) || '[]');
-    localStorage.removeItem(SYNC_QUEUE_KEY);
-    return queue;
-  } catch (err) {
-    console.error('Failed to clear sync queue:', err);
-    return [];
-  }
+export async function removeOfflineBook(bookId) {
+  const id = Number(bookId);
+  try { await tx('readwrite', store => { store.delete(id); }); } catch (e) {}
+  try { const c = await caches.open(LEGACY_CACHE); await c.delete(`/book-file-${id}`); } catch (e) {}
+  localStorage.setItem(META_KEY, JSON.stringify(readMeta().filter(b => Number(b.id) !== id)));
+}
+
+// ---------- Reading-progress sync queue ----------
+
+// Keeps only the latest position per book
+export async function queueOfflineBookmark(bookId, bookmarkData) {
+  let queue = [];
+  try { queue = JSON.parse(localStorage.getItem(SYNC_QUEUE_KEY) || '[]'); } catch (e) {}
+  queue = queue.filter(item => item.bookId !== bookId);
+  queue.push({ bookId, ...bookmarkData, timestamp: Date.now() });
+  localStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(queue));
+  return true;
+}
+
+// Read the queue WITHOUT clearing it (items are removed only after the server confirms)
+export async function getSyncQueue() {
+  try { return JSON.parse(localStorage.getItem(SYNC_QUEUE_KEY) || '[]'); } catch (e) { return []; }
+}
+
+// Remove an entry only if it has not been replaced by newer progress in the meantime
+export async function removeFromSyncQueue(bookId, timestamp) {
+  const queue = await getSyncQueue();
+  localStorage.setItem(
+    SYNC_QUEUE_KEY,
+    JSON.stringify(queue.filter(i => !(i.bookId === bookId && i.timestamp === timestamp)))
+  );
 }

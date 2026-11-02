@@ -1,6 +1,6 @@
 // public/sw.js
-const CACHE_NAME = '501books-static-v9';   // bump this number every time you change sw.js
-const APP_SHELL = ['/', '/index.html', '/db.js'];
+const CACHE_NAME = '501books-static-v10';  // bump this number every time you change sw.js
+const APP_SHELL = ['/', '/index.html', '/db.js?v=2'];
 const CDN_ASSETS = [
   'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',
   'https://cdn.jsdelivr.net/npm/epubjs/dist/epub.min.js',
