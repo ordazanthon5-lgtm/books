@@ -1,5 +1,5 @@
 // public/sw.js
-const CACHE_NAME = '501books-static-v8';   // bump so the fix rolls out
+const CACHE_NAME = '501books-static-v9';   // bump this number every time you change sw.js
 const APP_SHELL = ['/', '/index.html', '/db.js'];
 const CDN_ASSETS = [
   'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',
@@ -13,7 +13,7 @@ const CDN_ASSETS = [
 self.addEventListener('install', (e) => {
   e.waitUntil((async () => {
     const cache = await caches.open(CACHE_NAME);
-    // Same-origin files MUST cache, otherwise the install fails and retries
+    // Same-origin files MUST cache, otherwise the install fails and retries later
     await cache.addAll(APP_SHELL);
     // CDN files are best-effort (opaque responses)
     await Promise.all(CDN_ASSETS.map(async (url) => {
@@ -33,7 +33,7 @@ self.addEventListener('activate', (e) => {
     const keys = await caches.keys();
     await Promise.all(
       keys
-        // ONLY touch old static caches, never the epub cache
+        // ONLY remove old static caches. Never touch the downloaded-epub cache.
         .filter((k) => k.startsWith('501books-static-') && k !== CACHE_NAME)
         .map((k) => caches.delete(k))
     );
@@ -48,11 +48,16 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(req.url);
   if (url.pathname.startsWith('/api/')) return;
 
-  // Page loads: network first, cached shell when offline
+  // Page loads: network first; keep the saved copy of the page fresh; cached copy when offline
   if (req.mode === 'navigate') {
     e.respondWith((async () => {
       try {
-        return await fetch(req);
+        const res = await fetch(req);
+        if (res.ok && (url.pathname === '/' || url.pathname === '/index.html')) {
+          const cache = await caches.open(CACHE_NAME);
+          cache.put('/index.html', res.clone());
+        }
+        return res;
       } catch (err) {
         return (await caches.match('/index.html')) ||
                (await caches.match('/')) ||
@@ -62,13 +67,34 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // Everything else: cache first, then network (and remember same-origin files)
+  // Everything else: serve the saved copy instantly; refresh own files in the background
   e.respondWith((async () => {
     const cached = await caches.match(req);
-    if (cached) return cached;
+    const sameOrigin = url.origin === self.location.origin;
+
+    const refresh = sameOrigin
+      ? fetch(req).then(async (res) => {
+          if (res.ok) {
+            const cache = await caches.open(CACHE_NAME);
+            await cache.put(req, res.clone());
+          }
+          return res;
+        }).catch(() => null)
+      : null;
+
+    if (cached) {
+      if (refresh) e.waitUntil(refresh);
+      return cached;
+    }
+
+    if (refresh) {
+      return (await refresh) || new Response('', { status: 503 });
+    }
     try {
       const res = await fetch(req);
-      if (res.ok && url.origin === self.location.origin) {
+      // Self-healing: any CDN script/stylesheet that loads fine online gets saved for offline use
+      const isLib = req.destination === 'script' || req.destination === 'style';
+      if (isLib && (res.ok || res.type === 'opaque')) {
         const cache = await caches.open(CACHE_NAME);
         cache.put(req, res.clone());
       }

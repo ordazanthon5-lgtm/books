@@ -632,6 +632,23 @@
             });
         }
 
+        // Visible message that works inside app wrappers (alert() is often blocked there)
+        function showToast(msg) {
+            const old = document.getElementById('app-toast');
+            if (old) old.remove();
+            const el = document.createElement('div');
+            el.id = 'app-toast';
+            el.textContent = msg;
+            el.style.cssText = 'position:fixed;left:50%;bottom:7rem;transform:translateX(-50%);max-width:88%;background:#0F172A;color:#fff;border:1px solid rgba(239,35,60,0.6);border-radius:14px;padding:0.9rem 1.2rem;font-size:0.95rem;font-weight:600;text-align:center;z-index:300000;box-shadow:0 8px 25px rgba(0,0,0,0.6);';
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 5000);
+        }
+
+        // Placeholder cover used when a cover image can't load (e.g. offline)
+        window.COVER_FALLBACK = 'data:image/svg+xml;utf8,' + encodeURIComponent(
+            '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="160"><rect width="100%" height="100%" fill="#1e293b"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#94a3b8" font-size="14">501Books</text></svg>'
+        );
+
         window.addEventListener('online', async () => {
             console.log('Device back online. Syncing offline reading progress...');
             try {
@@ -1458,6 +1475,11 @@
             const btn = document.getElementById(`download-btn-${bookId}`);
             if (!btn) return;
 
+            if (!navigator.onLine) {
+                showToast('You are offline. Connect to the internet to download this book.');
+                return;
+            }
+
             btn.innerText = 'Downloading...';
             btn.disabled = true;
 
@@ -1496,6 +1518,7 @@
                 console.error('Download error:', err);
                 btn.innerText = '❌ Failed, try again';
                 btn.disabled = false;
+                showToast('Download failed. Check your connection and try again.');
             }
         }
 
@@ -1615,7 +1638,7 @@
                 return `
                     <div class="active-book-card-featured swipe-item-active" data-book-id="${bookId}">
                         <div class="active-book-cover-wrap">
-                            <img src="${cover}" alt="${title}" class="active-book-cover" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'120\' height=\'160\'><rect width=\'100%\' height=\'100%\' fill=\'%231e293b\'/><text x=\'50%\' y=\'50%\' dominant-baseline=\'middle\' text-anchor=\'middle\' fill=\'%2394a3b8\' font-size=\'14\'>501Books</text></svg>';">
+                            <img src="${cover}" alt="${title}" class="active-book-cover" onerror="this.onerror=null; this.src=window.COVER_FALLBACK;">
                             <div class="active-book-ribbon">${isCompleted ? '✅' : '📖'}</div>
                         </div>
                         <div class="active-book-details">
@@ -1659,6 +1682,20 @@
             if (!book) {
                 alert("Book not found in local library cache.");
                 return;
+            }
+
+            if (typeof ePub === 'undefined') {
+                showToast('Reader files have not loaded yet. Open the app once while online, then try again.');
+                return;
+            }
+
+            if (!navigator.onLine) {
+                let saved = false;
+                try { saved = await isBookDownloaded(bookId); } catch (e) {}
+                if (!saved) {
+                    showToast('This book is not saved for offline reading yet. Connect to the internet and tap Download first.');
+                    return;
+                }
             }
 
             const title = book.title || 'Untitled Book';
